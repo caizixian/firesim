@@ -260,5 +260,25 @@ class SimpleNICBridgeModule(implicit p: Parameters)
     genROReg(!tFire, "done")
 
     genCRFile()
+
+    override def genHeader(base: BigInt, sb: StringBuilder) {
+      super.genHeader(base, sb)
+
+      genInclude(sb, "simplenic")
+
+      sb.append(s"#ifdef GET_BRIDGE_CONSTRUCTOR\n")
+      sb.append(s"registry.add_widget(new simplenic_t(\n")
+      sb.append(s"  simif,\n")
+      sb.append(s"  *registry.get_stream_engine(),\n")
+      sb.append(s"  args,\n")
+      crRegistry.genSubstructCreate(base, sb, "SIMPLENICBRIDGEMODULE")
+      sb.append(s",\n  /*simplenicno=*/${getWId},\n")
+      sb.append(s"  /*stream_to_cpu_idx=*/${UInt32(toHostStreamIdx).toC},\n")
+      sb.append(s"  /*stream_to_cpu_depth=*/${UInt32(toHostCPUQueueDepth).toC},\n")
+      sb.append(s"  /*stream_from_cpu_idx=*/${UInt32(fromHostStreamIdx).toC},\n")
+      sb.append(s"  /*stream_from_cpu_depth=*/${UInt32(fromHostCPUQueueDepth).toC}\n")
+      sb.append(s"));\n")
+      sb.append(s"#endif // GET_BRIDGE_CONSTRUCTOR\n")
+    }
   }
 }

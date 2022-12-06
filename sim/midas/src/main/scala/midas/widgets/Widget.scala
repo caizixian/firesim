@@ -42,17 +42,12 @@ abstract class Widget()(implicit p: Parameters) extends LazyModule()(p) {
   this.suggestName(wName)
 
   def getWName = wName
+  def getWId = wId
 
   // Returns widget-relative word address
   def getCRAddr(name: String): Int = {
     module.crRegistry.lookupAddress(name).getOrElse(
       throw new RuntimeException(s"Could not find CR:${name} in widget: $wName"))
-  }
-
-  def headerComment(sb: StringBuilder): Unit = {
-    val name = getWName.toUpperCase
-    sb.append("\n// Widget: %s\n".format(getWName))
-    sb.append(CppGenerationUtils.genMacro(s"${name}(x)", s"${name}_ ## x"))
   }
 
   val customSize: Option[BigInt] = None
@@ -61,18 +56,6 @@ abstract class Widget()(implicit p: Parameters) extends LazyModule()(p) {
   def printCRs = module.crRegistry.printCRs
 
   def defaultPlusArgs: Option[String] = None
-
-  /**
-    * Provides a mechanism for mixins to register additional collateral
-    */
-  private val _headerFragmentFuncs = new mutable.ArrayBuffer[(BigInt) => Seq[String]]()
-  def appendHeaderFragment(f: (BigInt) => Seq[String]): Unit = {
-    _headerFragmentFuncs += f
-  }
-  def getHeaderFragments(base: BigInt): Seq[String] =
-    _headerFragmentFuncs.map { f => f(base) }
-    .flatten
-    .toSeq
 }
 
 abstract class WidgetImp(wrapper: Widget) extends LazyModuleImp(wrapper) {
@@ -158,10 +141,10 @@ abstract class WidgetImp(wrapper: Widget) extends LazyModuleImp(wrapper) {
   def genROReg[T <: Data](wire: T, name: String, substruct: Boolean = true): T =
     genAndAttachReg(wire, name, masterDriven = false, substruct = substruct)
 
-  def genWORegInit[T <: Data](wire: T, name: String, default: T): T =
-    genAndAttachReg(wire, name, Some(default))
-  def genRORegInit[T <: Data](wire: T, name: String, default: T): T =
-    genAndAttachReg(wire, name, Some(default), false)
+  def genWORegInit[T <: Data](wire: T, name: String, default: T, substruct: Boolean = true): T =
+    genAndAttachReg(wire, name, Some(default), true, substruct = substruct)
+  def genRORegInit[T <: Data](wire: T, name: String, default: T, substruct: Boolean = true): T =
+    genAndAttachReg(wire, name, Some(default), false, substruct = substruct)
 
 
   def genWideRORegInit[T <: Bits](default: T, name: String, substruct: Boolean = true): T = {
@@ -190,11 +173,14 @@ abstract class WidgetImp(wrapper: Widget) extends LazyModuleImp(wrapper) {
     crFile
   }
 
+  def genInclude(sb: StringBuilder, name: String): Unit = {
+    sb.append("#ifdef GET_INCLUDES\n")
+    sb.append(s"#include ${'\"'}bridges/${name}.h${'\"'}\n")
+    sb.append("#endif // GET_INCLUDES\n")
+  }
+
   def genHeader(base: BigInt, sb: StringBuilder): Unit = {
-    wrapper.headerComment(sb)
     crRegistry.genHeader(wrapper.getWName.toUpperCase, base, sb)
-    crRegistry.genArrayHeader(wrapper.getWName.toUpperCase, base, sb)
-    wrapper.getHeaderFragments(base).foreach { sb.append }
   }
 }
 

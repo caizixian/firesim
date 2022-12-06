@@ -10,7 +10,7 @@ struct RESETPULSEBRIDGEMODULE_struct {
 
 #include "core/bridge_driver.h"
 
-class reset_pulse_t : public bridge_driver_t {
+class reset_pulse_t final : public bridge_driver_t {
 public:
   /// The identifier for the bridge type used for casts.
   static char KIND;
@@ -21,6 +21,7 @@ public:
                 unsigned int max_pulse_length,
                 unsigned int default_pulse_length,
                 int reset_index);
+
   // Bridge interface
   void init() override;
   void tick() override {}

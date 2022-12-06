@@ -147,12 +147,24 @@ class TerminationBridgeModule(params: TerminationBridgeParams)(implicit p: Param
     genROReg(terminationCode.bits, "out_terminationCode")
 
     override def genHeader(base: BigInt, sb: StringBuilder): Unit = {
-      import CppGenerationUtils._
-      val headerWidgetName = getWName.toUpperCase
       super.genHeader(base, sb)
-      sb.append(genConstStatic(s"${headerWidgetName}_message_count", UInt32((params.conditionInfo).size)))
-      sb.append(genArray(s"${headerWidgetName}_message_type", (params.conditionInfo).map(x => UInt32(if(x.isErr) 1 else 0))))
-      sb.append(genArray(s"${headerWidgetName}_message", (params.conditionInfo).map(x => CStrLit(x.message))))
+
+      genInclude(sb, "termination")
+
+      import CppGenerationUtils._
+
+      sb.append(s"#ifdef GET_BRIDGE_CONSTRUCTOR\n")
+      sb.append(s"registry.add_widget(new termination_t(\n")
+      sb.append(s"  simif,\n")
+      sb.append(s"  args,\n")
+      crRegistry.genSubstructCreate(base, sb, "TERMINATIONBRIDGEMODULE")
+      sb.append(s",\n  std::vector<termination_message_t>{")
+      for (TerminationCondition(isErr, msg) <- params.conditionInfo) {
+        sb.append(s"termination_message_t{${if (isErr) "true" else "false"}, ${CStrLit(msg).toC}},\n")
+      }
+      sb.append("}")
+      sb.append(s"));\n")
+      sb.append(s"#endif // GET_BRIDGE_CONSTRUCTOR\n")
     }
     genCRFile()
   }

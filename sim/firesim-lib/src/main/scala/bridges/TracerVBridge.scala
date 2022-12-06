@@ -14,6 +14,7 @@ import testchipip.{TileTraceIO, DeclockedTracedInstruction, TracedInstructionWid
 
 import midas.targetutils.TriggerSource
 import midas.widgets._
+import midas.core.StreamSourceParameters
 import testchipip.{StreamIO, StreamChannel}
 import junctions.{NastiIO, NastiKey}
 
@@ -217,12 +218,29 @@ class TracerVBridgeModule(key: TracerVKey)(implicit p: Parameters)
     }
 
     genCRFile()
+
     override def genHeader(base: BigInt, sb: StringBuilder): Unit = {
-      import CppGenerationUtils._
-      val headerWidgetName = getWName.toUpperCase
       super.genHeader(base, sb)
-      sb.append(genConstStatic(s"${headerWidgetName}_max_core_ipc", UInt32(traces.size)))
-      emitClockDomainInfo(headerWidgetName, sb)
+
+      genInclude(sb, "tracerv")
+
+      import CppGenerationUtils._
+
+      val StreamSourceParameters(_, toHostStreamIdx, toHostCPUQueueDepth) = streamSourceParams
+
+      sb.append(s"#ifdef GET_BRIDGE_CONSTRUCTOR\n")
+      sb.append(s"registry.add_widget(new tracerv_t(\n")
+      sb.append(s"  simif,\n")
+      sb.append(s"  *registry.get_stream_engine(),\n")
+      sb.append(s"  args,\n")
+      crRegistry.genSubstructCreate(base, sb, "TRACERVBRIDGEMODULE")
+      sb.append(s",\n  /*stream_idx=*/${UInt32(toHostStreamIdx).toC},\n")
+      sb.append(s"  /*stream_depth=*/${UInt32(toHostCPUQueueDepth).toC},\n")
+      sb.append(s"  /*max_core_ip=*/${UInt32(traces.size).toC},\n")
+      sb.append(s"  /*clockInfo=*/${clockDomainInfo.toC},\n")
+      sb.append(s"  /*tracerno=*/${getWId}\n")
+      sb.append(s"));\n")
+      sb.append(s"#endif // GET_BRIDGE_CONSTRUCTOR\n")
     }
   }
 }

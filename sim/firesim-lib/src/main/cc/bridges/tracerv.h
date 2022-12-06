@@ -28,7 +28,7 @@ struct TRACERVBRIDGEMODULE_struct {
   uint64_t triggerSelector;
 };
 
-class tracerv_t : public streaming_bridge_driver_t {
+class tracerv_t final : public streaming_bridge_driver_t {
 public:
   /// The identifier for the bridge type used for casts.
   static char KIND;
@@ -40,9 +40,7 @@ public:
             const int stream_idx,
             const int stream_depth,
             const unsigned int max_core_ipc,
-            const char *const clock_domain_name,
-            const unsigned int clock_multiplier,
-            const unsigned int clock_divisor,
+            const ClockInfo &clock_info,
             int tracerno);
   ~tracerv_t();
 

@@ -66,11 +66,23 @@ class AssertBridgeModule(params: AssertBridgeParameters)(implicit p: Parameters)
     genCRFile()
 
     override def genHeader(base: BigInt, sb: StringBuilder): Unit = {
-      import CppGenerationUtils._
-      val headerWidgetName = getWName.toUpperCase
       super.genHeader(base, sb)
-      sb.append(genConstStatic(s"${headerWidgetName}_assert_count", UInt32(assertMessages.size)))
-      sb.append(genArray(s"${headerWidgetName}_assert_messages", assertMessages.map(CStrLit)))
+
+      genInclude(sb, "synthesized_assertions")
+
+      sb.append(s"#ifdef GET_BRIDGE_CONSTRUCTOR\n")
+      sb.append(s"registry.add_widget(new synthesized_assertions_t(\n")
+      sb.append(s"  simif,\n")
+      sb.append(s"  args,\n")
+      crRegistry.genSubstructCreate(base, sb, "ASSERTBRIDGEMODULE")
+      sb.append(s",\n")
+      sb.append(s"  std::vector<const char *>{\n")
+      assertMessages foreach { msg =>
+        sb.append(s"    ${CStrLit(msg).toC},\n")
+      }
+      sb.append(s"  }\n")
+      sb.append(s"));\n")
+      sb.append(s"#endif // GET_BRIDGE_CONSTRUCTOR\n")
     }
   }
 }

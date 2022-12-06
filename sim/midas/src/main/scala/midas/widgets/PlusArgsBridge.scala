@@ -187,22 +187,25 @@ class PlusArgsBridgeModule(params: PlusArgsBridgeParams)(implicit p: Parameters)
     }
 
     override def genHeader(base: BigInt, sb: StringBuilder) {
-      import CppGenerationUtils._
-      val headerWidgetName = getWName.toUpperCase
       super.genHeader(base, sb)
-      sb.append(genStatic(s"${headerWidgetName}_name", CStrLit(params.name)))
-      sb.append(genStatic(s"${headerWidgetName}_default", CStrLit(s"${params.default}")))
-      sb.append(genStatic(s"${headerWidgetName}_docstring", CStrLit(params.docstring)))
-      sb.append(genConstStatic(s"${headerWidgetName}_width", UInt32(params.width)))
-      sb.append(genConstStatic(s"${headerWidgetName}_slice_count", UInt32(slices.length)))
 
-      // call getCRAddr to get the registers by name, and then build this C style array
-      sb.append(
-        genArray(
-          s"${headerWidgetName}_slice_addrs",
-          Seq.tabulate(sliceCount)(x => UInt32(base + getCRAddr(s"out${x}"))),
-        )
-      )
+      genInclude(sb, "plusargs")
+
+      import CppGenerationUtils._
+
+      sb.append(s"#ifdef GET_BRIDGE_CONSTRUCTOR\n")
+      sb.append(s"registry.add_widget(new plusargs_t(\n")
+      sb.append(s"  simif,\n")
+      sb.append(s"  args,\n")
+      crRegistry.genSubstructCreate(base, sb, "PLUSARGSBRIDGEMODULE")
+      sb.append(s",\n   /*name=*/${CStrLit(params.name).toC},\n")
+      sb.append(s"  /*default_value=*/${CStrLit(s"${params.default}").toC},\n")
+      sb.append(s"  /*bit_width=*/${UInt32(params.width).toC},\n")
+      sb.append(s"  /*slice_addrs=*/std::vector<uint32_t>{")
+      Seq.tabulate(sliceCount)(x => base + getCRAddr(s"out${x}")).foreach { x => sb.append(s"${UInt32(x).toC}, ") }
+      sb.append(s"}\n")
+      sb.append(s"));\n")
+      sb.append(s"#endif // GET_BRIDGE_CONSTRUCTOR\n")
     }
     genCRFile()
   }

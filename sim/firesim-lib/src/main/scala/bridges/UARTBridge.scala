@@ -198,5 +198,23 @@ class UARTBridgeModule(key: UARTKey)(implicit p: Parameters) extends BridgeModul
     // the simulation control bus (AXI4-lite)
     genCRFile()
     // DOC include end: UART Bridge Footer
+
+    override def genHeader(base: BigInt, sb: StringBuilder) {
+      super.genHeader(base, sb)
+
+      genInclude(sb, "uart")
+
+      import CppGenerationUtils._
+      val headerWidgetName = getWName.toUpperCase
+
+      sb.append(s"#ifdef GET_BRIDGE_CONSTRUCTOR\n")
+      sb.append(s"registry.add_widget(new uart_t(\n")
+      sb.append(s"  simif,\n")
+      sb.append(s"  args,\n")
+      crRegistry.genSubstructCreate(base, sb, "UARTBRIDGEMODULE")
+      sb.append(s",\n  ${getWId}\n")
+      sb.append(s"));\n")
+      sb.append(s"#endif // GET_BRIDGE_CONSTRUCTOR\n")
+    }
   }
 }

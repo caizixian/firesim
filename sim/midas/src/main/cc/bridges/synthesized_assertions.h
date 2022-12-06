@@ -12,7 +12,7 @@ struct ASSERTBRIDGEMODULE_struct {
   uint64_t enable;
 };
 
-class synthesized_assertions_t : public bridge_driver_t {
+class synthesized_assertions_t final : public bridge_driver_t {
 public:
   /// The identifier for the bridge type used for casts.
   static char KIND;
@@ -20,11 +20,13 @@ public:
   synthesized_assertions_t(simif_t &sim,
                            const std::vector<std::string> &args,
                            const ASSERTBRIDGEMODULE_struct &mmio_addrs,
-                           const char *const *msgs);
+                           std::vector<const char *> &&msgs);
   ~synthesized_assertions_t() override;
+
   void init() override;
   void tick() override;
   void finish() override {}
+
   void
   resume(); // Clears any set assertions, and allows the simulation to advance
   bool terminate() override { return assert_fired; };
@@ -36,7 +38,7 @@ private:
   int assert_id;
   uint64_t assert_cycle;
   const ASSERTBRIDGEMODULE_struct mmio_addrs;
-  const char *const *msgs;
+  std::vector<const char *> msgs;
 };
 
 #endif //__SYNTHESIZED_ASSERTIONS_H

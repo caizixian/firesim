@@ -38,14 +38,8 @@ public:
 
   peek_poke_t(simif_t &simif,
               const PEEKPOKEBRIDGEMODULE_struct &mmio_addrs,
-              unsigned poke_size,
-              const uint32_t *input_addrs,
-              const char *const *input_names,
-              const uint32_t *input_chunks,
-              unsigned peek_size,
-              const uint32_t *output_addrs,
-              const char *const *output_names,
-              const uint32_t *output_chunks);
+              port_map &&inputs,
+              port_map &&outputs);
   ~peek_poke_t() override = default;
 
   void poke(std::string_view id, uint32_t value, bool blocking);
@@ -83,9 +77,9 @@ private:
   /// Flag to indicate whether the last request timed out.
   bool req_timeout;
   /// Addresses of input ports.
-  port_map inputs;
+  const port_map inputs;
   /// Addresses of output ports.
-  port_map outputs;
+  const port_map outputs;
 
   bool wait_on(size_t flag_addr, double timeout) {
     midas_time_t start = timestamp();

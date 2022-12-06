@@ -20,6 +20,16 @@ struct AUTOCOUNTERBRIDGEMODULE_struct {
   uint64_t readdone;
 };
 
+struct AutoCounterParameters {
+  std::string type;
+  std::string event_label;
+  std::string event_msg;
+  uint32_t bit_width;
+  uint32_t accumulator_width;
+  uint32_t event_addr_hi;
+  uint32_t event_addr_lo;
+};
+
 class autocounter_t : public bridge_driver_t {
 public:
   /// The identifier for the bridge type used for casts.
@@ -29,17 +39,8 @@ public:
                 const std::vector<std::string> &args,
                 const AUTOCOUNTERBRIDGEMODULE_struct &mmio_addrs,
                 AddressMap &&addr_map,
-                uint32_t event_count,
-                const char *const *event_types,
-                const uint32_t *event_widths,
-                const uint32_t *accumulator_widths,
-                const uint32_t *event_addr_hi,
-                const uint32_t *event_addr_lo,
-                const char *const *event_msgs,
-                const char *const *event_labels,
-                const char *clock_domain_name,
-                unsigned int clock_multiplier,
-                unsigned int clock_divisor,
+                const std::vector<AutoCounterParameters> &counters,
+                const ClockInfo &clock_info,
                 int autocounterno);
   ~autocounter_t() override;
 
@@ -52,14 +53,8 @@ public:
 private:
   const AUTOCOUNTERBRIDGEMODULE_struct mmio_addrs;
   const AddressMap addr_map;
-  const uint32_t event_count;
-  std::vector<std::string> event_types;
-  std::vector<uint32_t> event_widths;
-  std::vector<uint32_t> accumulator_widths;
-  std::vector<uint32_t> event_addr_hi;
-  std::vector<uint32_t> event_addr_lo;
-  std::vector<std::string> event_msgs;
-  std::vector<std::string> event_labels;
+
+  std::vector<AutoCounterParameters> counters;
   ClockInfo clock_info;
 
   uint64_t cur_cycle_base_clock = 0;

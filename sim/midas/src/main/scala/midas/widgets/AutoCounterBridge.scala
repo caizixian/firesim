@@ -146,8 +146,8 @@ class AutoCounterBridgeModule(key: AutoCounterParameters)(implicit p: Parameters
     hPort.toHost.hReady := targetFire
 
     val (lowCountAddrs, highCountAddrs) = (for ((counter, label) <- btht_queue.io.deq.bits.zip(labels)) yield {
-      val lowAddr = attach(counter(hostCounterLowWidth-1, 0), s"autocounter_low_${label}", ReadOnly)
-      val highAddr = attach(counter >> hostCounterLowWidth, s"autocounter_high_${label}", ReadOnly)
+      val lowAddr = attach(counter(hostCounterLowWidth-1, 0), s"autocounter_low_${label}", ReadOnly, false)
+      val highAddr = attach(counter >> hostCounterLowWidth, s"autocounter_high_${label}", ReadOnly, false)
       (lowAddr, highAddr)
     }).unzip
 
@@ -163,21 +163,40 @@ class AutoCounterBridgeModule(key: AutoCounterParameters)(implicit p: Parameters
     Pulsify(genWORegInit(btht_queue.io.deq.ready, "readdone", false.B), 1)
 
     override def genHeader(base: BigInt, sb: StringBuilder): Unit = {
-      headerComment(sb)
-      // Exclude counter addresses as their names can vary across AutoCounter instances, but 
-      // we only generate a single struct typedef
-      val headerWidgetName = wName.toUpperCase
-      crRegistry.genHeader(headerWidgetName, base, sb, lowCountAddrs ++ highCountAddrs)
-      crRegistry.genArrayHeader(headerWidgetName, base, sb)
-      emitClockDomainInfo(headerWidgetName, sb)
-      sb.append(genConstStatic(s"${headerWidgetName}_event_count",  UInt32(allEventMetadata.size)))
-      sb.append(genArray(s"${headerWidgetName}_event_types",  allEventMetadata.map { m => CStrLit(m.opType.toString) }))
-      sb.append(genArray(s"${headerWidgetName}_event_labels", allEventMetadata.map { m => CStrLit(m.label) } ))
-      sb.append(genArray(s"${headerWidgetName}_event_descriptions", allEventMetadata.map { m => CStrLit(m.description) } ))
-      sb.append(genArray(s"${headerWidgetName}_event_addr_hi", highCountAddrs.map { offset => UInt32(base + offset) } ))
-      sb.append(genArray(s"${headerWidgetName}_event_addr_lo", lowCountAddrs.map {  offset => UInt32(base + offset) } ))
-      sb.append(genArray(s"${headerWidgetName}_event_widths", allEventMetadata.map { m => UInt32(m.width) } ))
-      sb.append(genArray(s"${headerWidgetName}_accumulator_widths", allEventMetadata.map { m => UInt32(m.counterWidth) } ))
+      super.genHeader(base, sb)
+
+      import CppGenerationUtils._
+
+      genInclude(sb, "autocounter")
+
+      sb.append(s"#ifdef GET_BRIDGE_CONSTRUCTOR\n")
+      sb.append(s"registry.add_widget(new autocounter_t(\n")
+      sb.append(s"  simif,\n")
+      sb.append(s"  args,\n")
+      crRegistry.genSubstructCreate(base, sb, "AUTOCOUNTERBRIDGEMODULE")
+      sb.append(s",\n  ")
+      crRegistry.genAddressMap(base, sb)
+      sb.append(s",\n")
+
+      sb.append(s"  std::vector<AutoCounterParameters>{\n")
+      allEventMetadata.zip(highCountAddrs).zip(lowCountAddrs) foreach { case ((m, hi), lo) =>
+        sb.append(s"    AutoCounterParameters{")
+
+        sb.append(s".type=${CStrLit(m.opType.toString).toC},")
+        sb.append(s".event_label=${CStrLit(m.label).toC},")
+        sb.append(s".event_msg=${CStrLit(m.description).toC},")
+
+        sb.append(s".bit_width=${UInt32(m.width).toC},")
+        sb.append(s".accumulator_width=${UInt32(m.counterWidth).toC},")
+        sb.append(s".event_addr_hi=${UInt32(base + hi).toC},")
+        sb.append(s".event_addr_lo=${UInt32(base + lo).toC}")
+        sb.append(s"},\n")
+      }
+      sb.append(s"  },\n")
+      sb.append(s"  /*clockInfo=*/${clockDomainInfo.toC},\n")
+      sb.append(s"  /*autocounterno=*/${getWId}\n")
+      sb.append(s"));\n")
+      sb.append(s"#endif // GET_BRIDGE_CONSTRUCTOR\n")
     }
     genCRFile()
   }

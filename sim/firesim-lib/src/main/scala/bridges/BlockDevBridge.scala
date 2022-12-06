@@ -254,8 +254,19 @@ class BlockDevBridgeModule(blockDevExternal: BlockDeviceConfig, hostP: Parameter
 
     override def genHeader(base: BigInt, sb: StringBuilder): Unit = {
       super.genHeader(base, sb)
-      sb.append(CppGenerationUtils.genMacro(s"${getWName.toUpperCase}_latency_bits", UInt32(latencyBits)))
-      sb.append(CppGenerationUtils.genMacro(s"${getWName.toUpperCase}_num_trackers", UInt32(nTrackers)))
+
+      genInclude(sb, "blockdev")
+
+      sb.append(s"#ifdef GET_BRIDGE_CONSTRUCTOR\n")
+      sb.append(s"registry.add_widget(new blockdev_t(\n")
+      sb.append(s"  simif,\n")
+      sb.append(s"  args,\n")
+      crRegistry.genSubstructCreate(base, sb, "BLOCKDEVBRIDGEMODULE")
+      sb.append(s",\n  /*num_trackers=*/${UInt32(nTrackers).toC},\n")
+      sb.append(s"  /*latency_bits=*/${UInt32(latencyBits).toC},\n")
+      sb.append(s"  /*blkdevno=*/${getWId}\n")
+      sb.append(s"));\n")
+      sb.append(s"#endif // GET_BRIDGE_CONSTRUCTOR\n")
     }
   }
 }

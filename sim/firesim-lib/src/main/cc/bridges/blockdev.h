@@ -68,9 +68,9 @@ public:
 
   blockdev_t(simif_t &sim,
              const std::vector<std::string> &args,
+             const BLOCKDEVBRIDGEMODULE_struct &mmio_addrs,
              uint32_t num_trackers,
              uint32_t latency_bits,
-             const BLOCKDEVBRIDGEMODULE_struct &mmio_addrs,
              int blkdevno);
   ~blockdev_t() override;
 

@@ -76,11 +76,22 @@ class ResetPulseBridgeModule(cfg: ResetPulseBridgeParameters)(implicit p: Parame
     }
 
     override def genHeader(base: BigInt, sb: StringBuilder): Unit = {
-      import CppGenerationUtils._
-      val headerWidgetName = getWName.toUpperCase
       super.genHeader(base, sb)
-      sb.append(genConstStatic(s"${headerWidgetName}_max_pulse_length", UInt32(cfg.maxPulseLength)))
-      sb.append(genConstStatic(s"${headerWidgetName}_default_pulse_length", UInt32(cfg.defaultPulseLength)))
+
+      genInclude(sb, "reset_pulse")
+
+      import CppGenerationUtils._
+
+      sb.append(s"#ifdef GET_BRIDGE_CONSTRUCTOR\n")
+      sb.append(s"registry.add_widget(new reset_pulse_t(\n")
+      sb.append(s"  simif,\n")
+      sb.append(s"  args,\n")
+      crRegistry.genSubstructCreate(base, sb, "RESETPULSEBRIDGEMODULE")
+      sb.append(s",\n  ${UInt32(cfg.maxPulseLength).toC},\n")
+      sb.append(s"  ${UInt32(cfg.defaultPulseLength).toC},\n")
+      sb.append(s"  ${getWId}\n")
+      sb.append(s"));\n")
+      sb.append(s"#endif // GET_BRIDGE_CONSTRUCTOR\n")
     }
     genCRFile()
   }

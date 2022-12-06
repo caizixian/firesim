@@ -173,32 +173,40 @@ class PrintBridgeModule(key: PrintBridgeParameters)(implicit p: Parameters)
       bufferReady := widthAdapter.io.in.ready
     }
 
-    // HEADER GENERATION
-    // The LSB corresponding to the enable bit of the print
-    val widths = (printPort.printRecords.map(_._2.getWidth))
-
-    // C-types for emission
-    val baseOffsets = widths.foldLeft(Seq(UInt32(reservedBits)))({ case (offsets, width) => 
-      UInt32(offsets.head.value + width) +: offsets}).tail.reverse
-
-    val argumentCounts  = printPort.printRecords.map(_._2.args.size).map(UInt32(_))
-    val argumentWidths  = printPort.printRecords.flatMap(_._2.argumentWidths()).map(UInt32(_))
-    val argumentOffsets = printPort.printRecords.map(_._2.argumentOffsets().map(UInt32(_)))
-    val formatStrings   = printPort.printRecords.map(_._2.formatString).map(CStrLit)
-
     override def genHeader(base: BigInt, sb: StringBuilder): Unit = {
-      import CppGenerationUtils._
-      val headerWidgetName = getWName.toUpperCase
       super.genHeader(base, sb)
-      sb.append(genConstStatic(s"${headerWidgetName}_print_count", UInt32(printPort.printRecords.size)))
-      sb.append(genConstStatic(s"${headerWidgetName}_token_bytes", UInt32(pow2Bits / 8)))
-      sb.append(genConstStatic(s"${headerWidgetName}_idle_cycles_mask",
-                               UInt32(((1 << idleCycleBits) - 1) << reservedBits)))
-      sb.append(genArray(s"${headerWidgetName}_print_offsets", baseOffsets))
-      sb.append(genArray(s"${headerWidgetName}_format_strings", formatStrings))
-      sb.append(genArray(s"${headerWidgetName}_argument_counts", argumentCounts))
-      sb.append(genArray(s"${headerWidgetName}_argument_widths", argumentWidths))
-      emitClockDomainInfo(headerWidgetName, sb)
+
+      genInclude(sb, "synthesized_prints")
+
+      import CppGenerationUtils._
+
+      val offsets = printPort.printRecords.map(_._2.getWidth).foldLeft(Seq(UInt32(reservedBits)))({ case (offsets, width) =>
+        UInt32(offsets.head.value + width) +: offsets}).tail.reverse
+
+      sb.append(s"#ifdef GET_BRIDGE_CONSTRUCTOR\n")
+      sb.append(s"registry.add_widget(new synthesized_prints_t(\n")
+      sb.append(s"  simif,\n")
+      sb.append(s"  *registry.get_stream_engine(),\n")
+      sb.append(s"  args,\n  ")
+      crRegistry.genSubstructCreate(base, sb, "PRINTBRIDGEMODULE")
+      sb.append(s",\n  std::vector<PrintParameters>{\n")
+      printPort.printRecords.zip(offsets) foreach { case ((_, p), offset) =>
+        sb.append(s"    PrintParameters{")
+        sb.append(s".print_offset = ${offset.toC}, ")
+        sb.append(s".format_string = ${CStrLit(p.formatString).toC}, ")
+        sb.append(s".argument_widths = std::vector<unsigned>{")
+        p.argumentWidths foreach { w => sb.append(s"${UInt32(w).toC},") }
+        sb.append(s"}},\n")
+      }
+      sb.append(s"  },\n")
+      sb.append(s"  /*token_bytes=*/${UInt32(pow2Bits / 8).toC},\n")
+      sb.append(s"  /*idle_cycles_mask=*/${UInt32(((1 << idleCycleBits) - 1) << reservedBits).toC},\n")
+      sb.append(s"  /*stream_idx=*/${UInt32(toHostStreamIdx).toC},\n")
+      sb.append(s"  /*stream_depth=*/${UInt32(toHostCPUQueueDepth).toC},\n")
+      sb.append(s"  /*clockInfo=*/${clockDomainInfo.toC},\n")
+      sb.append(s"  /*printno=*/${getWId}\n")
+      sb.append(s"));\n")
+      sb.append(s"#endif // GET_BRIDGE_CONSTRUCTOR\n")
     }
     genCRFile()
   }

@@ -76,8 +76,11 @@ trait UsesHostDRAM extends HostDramHeaderConsts {
 
 private[midas] case class HostMemoryMapping(memoryRegionName: String, hostOffset: BigInt) extends HostDramHeaderConsts {
   def serializeToHeader(sb: StringBuilder): Unit = {
+    sb.append("#ifdef GET_MEMORY_OFFSET\n")
     sb.append(genComment(s"Host FPGA memory mapping for region: ${memoryRegionName}"))
     sb.append(genConstStatic(offsetConstName, Int64(hostOffset)))
+    sb.append("#undef GET_MEMORY_OFFSET\n")
+    sb.append("#endif // GET_MEMORY_OFFSET\n")
   }
 }
 

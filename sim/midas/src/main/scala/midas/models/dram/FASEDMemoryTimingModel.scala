@@ -556,13 +556,21 @@ class FASEDMemoryTimingModel(completeConfig: CompleteConfig, hostParams: Paramet
     genCRFile()
 
     override def genHeader(base: BigInt, sb: StringBuilder): Unit = {
-      def genCPPmap(mapName: String, map: Map[String, BigInt]): String = {
-        val prefix = s"const std::map<std::string, int> $mapName = {\n"
-        map.foldLeft(prefix)((str, kvp) => str + s""" {\"${kvp._1}\", ${kvp._2}},\n""") + "};\n"
-      }
-      import midas.widgets.CppGenerationUtils._
       super.genHeader(base, sb)
-      sb.append(CppGenerationUtils.genMacro(s"${getWName.toUpperCase}_target_addr_bits", UInt32(p(NastiKey).addrBits)))
+
+      genInclude(sb, "fased_memory_timing_model")
+
+      sb.append(s"#ifdef GET_BRIDGE_CONSTRUCTOR\n")
+      sb.append(s"registry.add_widget(new FASEDMemoryTimingModel(\n")
+      sb.append(s"  simif,\n")
+      crRegistry.genAddressMap(base, sb)
+      sb.append(s",\n")
+      sb.append(s"  args,\n")
+      sb.append(s"  ${'"'}memory_stats${getWId}.csv${'"'},\n")
+      sb.append(s"  1L << ${UInt32(p(NastiKey).addrBits).toC},\n")
+      sb.append(s"  ${'"'}_${getWId}${'"'}\n")
+      sb.append(s"));\n")
+      sb.append(s"#endif // GET_BRIDGE_CONSTRUCTOR\n")
     }
 
     // Prints out key elaboration time settings

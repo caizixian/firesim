@@ -154,26 +154,33 @@ class PeekPokeBridgeModule(key: PeekPokeKey)(implicit p: Parameters) extends Bri
     })
 
     override def genHeader(base: BigInt, sb: StringBuilder): Unit = {
+      super.genHeader(base, sb)
+
+      genInclude(sb, "peek_poke")
+
       import CppGenerationUtils._
 
-      val name = getWName.toUpperCase
-      def genOffsets(signals: Seq[String]): Unit = (signals.zipWithIndex) foreach {
-        case (name, idx) => sb.append(genConstStatic(name, UInt32(idx)))}
+      def genPortLists(name: String, names: Seq[String], addrs: Seq[Seq[Int]]): Unit = {
+        sb.append(s"  /*${name}=*/(peek_poke_t::port_map{\n")
+        names.zip(addrs) foreach { case (name, addr) =>
+          sb.append(s"    {${CStrLit(name).toC}, peek_poke_t::port{")
+          sb.append(s".address=${UInt64(base + addr.head).toC}, ")
+          sb.append(s".chunks=${UInt32(addr.size).toC}")
+          sb.append(s"}},\n")
+        }
+        sb.append(s"  })")
+      }
 
-      super.genHeader(base, sb)
-      sb.append(genComment("Pokeable target inputs"))
-      sb.append(genMacro("POKE_SIZE", UInt64(hPort.ins.size)))
-      genOffsets(hPort.ins.unzip._1)
-      sb.append(genArray("INPUT_ADDRS", inputAddrs.map(off => UInt32(base + off.head)).toSeq))
-      sb.append(genArray("INPUT_NAMES", hPort.ins.unzip._1 map CStrLit))
-      sb.append(genArray("INPUT_CHUNKS", inputAddrs.map(addrSeq => UInt32(addrSeq.size)).toSeq))
-
-      sb.append(genComment("Peekable target outputs"))
-      sb.append(genMacro("PEEK_SIZE", UInt64(hPort.outs.size)))
-      genOffsets(hPort.outs.unzip._1)
-      sb.append(genArray("OUTPUT_ADDRS", outputAddrs.map(off => UInt32(base + off.head)).toSeq))
-      sb.append(genArray("OUTPUT_NAMES", hPort.outs.unzip._1 map CStrLit))
-      sb.append(genArray("OUTPUT_CHUNKS", outputAddrs.map(addrSeq => UInt32(addrSeq.size)).toSeq))
+      sb.append(s"#ifdef GET_BRIDGE_CONSTRUCTOR\n")
+      sb.append(s"registry.add_widget(new peek_poke_t(\n")
+      sb.append(s"  simif,\n  ")
+      crRegistry.genSubstructCreate(base, sb, "PEEKPOKEBRIDGEMODULE")
+      sb.append(s",\n")
+      genPortLists("inputs", hPort.ins.unzip._1, inputAddrs)
+      sb.append(s",\n")
+      genPortLists("outputs", hPort.outs.unzip._1, outputAddrs)
+      sb.append(s"));\n")
+      sb.append(s"#endif // GET_BRIDGE_CONSTRUCTOR\n")
     }
   }
 }

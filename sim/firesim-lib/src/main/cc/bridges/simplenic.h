@@ -20,7 +20,7 @@ struct SIMPLENICBRIDGEMODULE_struct {
   uint64_t done;
 };
 
-class simplenic_t : public streaming_bridge_driver_t {
+class simplenic_t final : public streaming_bridge_driver_t {
 public:
   /// The identifier for the bridge type used for casts.
   static char KIND;
