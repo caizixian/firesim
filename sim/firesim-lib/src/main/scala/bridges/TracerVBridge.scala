@@ -216,6 +216,83 @@ class TracerVBridgeModule(key: TracerVKey)(implicit p: Parameters)
       trace_cycle_counter := trace_cycle_counter + 1.U
     }
 
+    val fsmT :: sNone :: sProcessing :: sFooA :: sFooB :: sFooC :: sOther :: Nil = Enum(7)
+    val fsm = RegInit(fsmT)
+    val select: UInt = RegInit(0.U(5.W))
+
+    val traces_A = Seq(traces(0), traces(1), traces(2), traces(3), traces(4), traces(5), traces(6))
+    val uint_traces_A = (traces_A map (trace => Cat(trace.valid, trace.iaddr).pad(64))).reverse
+    val stream_bits_A = Cat(uint_traces_A :+ trace_cycle_counter.pad(64)).pad(BridgeStreamConstants.streamWidthBits)
+    
+    val traces_B = Seq(traces(7), traces(8), traces(9), traces(10), traces(11), traces(12), traces(13))
+    val uint_traces_B = (traces_B map (trace => Cat(trace.valid, trace.iaddr).pad(64))).reverse
+    val stream_bits_B = Cat(uint_traces_B :+ trace_cycle_counter.pad(64)).pad(BridgeStreamConstants.streamWidthBits)
+    
+    val traces_C = Seq(traces(14), traces(15), traces(16), traces(17), traces(18), traces(19), traces(20))
+    val uint_traces_C = (traces_C map (trace => Cat(trace.valid, trace.iaddr).pad(64))).reverse
+    val stream_bits_C = Cat(uint_traces_C :+ trace_cycle_counter.pad(64)).pad(BridgeStreamConstants.streamWidthBits)
+
+    val theMux = MuxLookup(select, stream_bits_A, Seq(
+      0.U -> stream_bits_A,
+      1.U -> stream_bits_B,
+      2.U -> stream_bits_C
+    ))
+
+    dontTouch(fsm)
+    dontTouch(select)
+    dontTouch(theMux)
+
+    dontTouch(stream_bits_A)
+    dontTouch(stream_bits_B)
+    dontTouch(stream_bits_C)
+
+    switch(fsm) {
+      is(sNone) {
+
+        when(hPort.toHost.hValid === true.B) {
+          fsm := sProcessing
+        }
+      }
+      is(sProcessing) {
+        fsm := sFooA
+      }
+      is(sFooA) {
+        select := 0.U
+        fsm := sFooB
+      }
+      is(sFooB) {
+        select := 1.U
+        fsm := sFooC
+      }
+      is(sFooC) {
+        select := 2.U
+        fsm := sNone
+      }
+    }
+
+      
+    // state machine
+    // mux traces onto streamEnq.bits
+    // when toHost.valid is true, we have a new token -> processing state
+    // processing state -> 
+    // assume trace.valid is continugous , as soon as first non-valid is found, no remaining are valid
+
+//                                       |
+    // 7 are valid                vvvvvvv
+    // 10 are valid               vvvvvvv vvv
+
+
+    // count valids, deicde which arm of the mux to use
+    // only need to check first valid bit per arm
+    
+    // strobe valid, and update streamEnq.bits
+
+    // mux 32 / 7 inputs, 0-6 would use first arm of the mux
+
+    // 1: v
+    // 2: vv
+    // 3: vvv
+
     genCRFile()
     override def genHeader(base: BigInt, sb: StringBuilder): Unit = {
       import CppGenerationUtils._

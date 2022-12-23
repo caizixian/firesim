@@ -103,12 +103,15 @@ abstract class FireSimTestSuite(
       }
     }
   }
-
+// /home/centos/firesim/sim/target-rtl/chipyard/generators/firechip/src/test/scala/ScalaTestSuite.scala
+// /home/centos/firesim/sim/src/test/scala/firesim/FireSimTestSuite.scala
   mkdirs
   behavior.of(s"Tuple: ${targetTuple}")
   elaborateAndCompile()
-  runTest("verilator", "rv64ui-p-simple", false, Seq(s"""EXTRA_SIM_ARGS=+trace-humanreadable0"""))
-  runSuite("verilator")(benchmarks)
+  runTest("verilator", "rv64ui-p-simple", true, Seq(s"""EXTRA_SIM_ARGS=+trace-humanreadable0"""))
+  // runTest("verilator", "vadd", false, Seq(s"""EXTRA_SIM_ARGS=+trace-humanreadable0"""))
+  // runSuite("verilator", true)(benchmarks)
+  // runSuite("verilator")(benchmarks)
 }
 
 class SimpleRocketF1Tests
