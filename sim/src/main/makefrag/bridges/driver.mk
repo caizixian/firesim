@@ -22,7 +22,7 @@ DRIVER_CC := \
 			fesvr/firesim_tsi.cc \
 		))
 
-TARGET_CXX_FLAGS := \
+DRIVER_CXX_FLAGS := \
 		-isystem $(testchipip_csrc_dir) \
 		-I$(RISCV)/include \
 		-I$(firesim_lib_dir) \
@@ -32,5 +32,4 @@ TARGET_CXX_FLAGS := \
 		-g
 
 TARGET_LD_FLAGS := \
-		-L$(RISCV)/lib \
-		-lfesvr
+		-L$(RISCV)/lib -lfesvr
