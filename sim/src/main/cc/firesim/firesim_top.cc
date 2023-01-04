@@ -19,7 +19,7 @@ public:
 private:
   // profile interval: # of cycles to advance before profiling instrumentation
   // registers in models
-  uint64_t profile_interval = -1;
+  std::optional<uint64_t> profile_interval;
   uint64_t profile_models();
 
   // Returns true if any bridge has signaled for simulation termination
@@ -32,7 +32,6 @@ firesim_top_t::firesim_top_t(const std::vector<std::string> &args, simif_t &sim)
     : simulation_t(sim, args) {
 
   max_cycles = -1;
-  profile_interval = max_cycles;
 
   for (auto &arg : args) {
     if (arg.find("+max-cycles=") == 0) {
@@ -58,7 +57,7 @@ uint64_t firesim_top_t::profile_models() {
   for (auto &mod : sim.get_registry().get_all_models()) {
     mod->profile();
   }
-  return profile_interval;
+  return *profile_interval;
 }
 
 int firesim_top_t::exit_code() {
@@ -71,7 +70,7 @@ int firesim_top_t::exit_code() {
 
 void firesim_top_t::simulation_init() {
   // Add functions you'd like to periodically invoke on a paused simulator here.
-  if (profile_interval != -1) {
+  if (profile_interval.has_value()) {
     register_task([this]() { return this->profile_models(); }, 0);
   }
 
