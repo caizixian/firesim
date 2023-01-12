@@ -141,8 +141,8 @@ class BlockDevVitisTest extends BlockDevTest(BaseConfigs.Vitis)
 class TracerVTest(targetConfig: BasePlatformConfig) extends BridgeSuite("TracerVModule", "NoConfig", targetConfig) {
 
   override def runTest(backend: String, debug: Boolean) {
-    // val runResult = run(backend, true, args = Seq(s"+tracefile=/home/centos/trace.txt", "+trace-test-output"))
-    val runResult = run(backend, false, args = Seq(s"+tracefile=/home/centos/trace.txt", "+trace-test-output"))
+    val runResult = run(backend, true, args = Seq(s"+tracefile=/home/centos/trace.txt", "+trace-test-output"))
+    // val runResult = run(backend, false, args = Seq(s"+tracefile=/home/centos/trace.txt", "+trace-test-output"))
     assert(runResult == 0)
   }
 }
