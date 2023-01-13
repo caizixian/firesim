@@ -240,16 +240,54 @@ class TracerVBridgeModule(key: TracerVKey)(implicit p: Parameters)
       trace_cycle_counter := trace_cycle_counter + 1.U
     }
 
+    val armWidth = 7
+
+    // divide with a ceiling round, to get the total number of arms
+    val armCount = (traces.length + armWidth - 1) / armWidth
+
+    // remove this duplicate representation
+    val total_arms = 3.U
+
+    val armWidths = Seq.tabulate(armCount)(x => math.min(traces.length - (x * armWidth), armWidth))
+
+    println(s"AAAarmCount ${armCount}")
+    println(s"WWWarmWidths ${armWidths}")
+
+    // A Seq of Seq which represents each arm of the mux
+    val allTraceArms = Seq(
+      Seq(traces(0), traces(1), traces(2), traces(3), traces(4), traces(5), traces(6)),
+      Seq(traces(7), traces(8), traces(9), traces(10), traces(11), traces(12), traces(13)),
+      Seq(traces(14))
+    )
+
+    val allUintTraces = Seq(
+      (allTraceArms(0) map (trace => Cat(trace.valid, trace.iaddr).pad(64))).reverse,
+      (allTraceArms(1) map (trace => Cat(trace.valid, trace.iaddr).pad(64))).reverse,
+      (allTraceArms(2) map (trace => Cat(trace.valid, trace.iaddr).pad(64))).reverse,
+    )
+
+    // Literally each arm of the mux, these are directly the bits that get put into the bump
+    val allStreamBits = Seq(
+      Cat(allUintTraces(0) :+ trace_cycle_counter.pad(64)).pad(BridgeStreamConstants.streamWidthBits),
+      Cat(allUintTraces(1) :+ trace_cycle_counter.pad(64)).pad(BridgeStreamConstants.streamWidthBits),
+      Cat(allUintTraces(2) :+ trace_cycle_counter.pad(64)).pad(BridgeStreamConstants.streamWidthBits),
+    )
+
+    // a parallel set of arms to a parallel mux, true if any instructions in the arm are valid 
+    val allAnyValid = Seq(
+      (allTraceArms(0).map(trace => trace.valid).reduce((a,b) => (a|b))),
+      (allTraceArms(1).map(trace => trace.valid).reduce((a,b) => (a|b))),
+      (allTraceArms(2).map(trace => trace.valid).reduce((a,b) => (a|b))),
+    )
+
     val traces_A = Seq(traces(0), traces(1), traces(2), traces(3), traces(4), traces(5), traces(6))
     val uint_traces_A = (traces_A map (trace => Cat(trace.valid, trace.iaddr).pad(64))).reverse
     val stream_bits_A = Cat(uint_traces_A :+ trace_cycle_counter.pad(64)).pad(BridgeStreamConstants.streamWidthBits)
-    val traces_A_decider = traces(0)
     val traces_A_any_valid = (traces_A.map(trace => trace.valid).reduce((a,b) => (a|b)))
     
     val traces_B = Seq(traces(7), traces(8), traces(9), traces(10), traces(11), traces(12), traces(13))
     val uint_traces_B = (traces_B map (trace => Cat(trace.valid, trace.iaddr).pad(64))).reverse
     val stream_bits_B = Cat(uint_traces_B :+ trace_cycle_counter.pad(64)).pad(BridgeStreamConstants.streamWidthBits)
-    val traces_B_decider = traces(7)
     val traces_B_any_valid = (traces_B.map(trace => trace.valid).reduce((a,b) => (a|b)))
     
     // val traces_C = Seq(traces(14), traces(15), traces(16), traces(17), traces(18), traces(19), traces(20))
@@ -259,17 +297,17 @@ class TracerVBridgeModule(key: TracerVKey)(implicit p: Parameters)
 
     val counter = RegInit(0.U(5.W))
     
-    val theMux = MuxLookup(counter, stream_bits_A, Seq(
-      0.U -> stream_bits_A,
-      1.U -> stream_bits_B,
-      // 2.U -> stream_bits_C
+    val theMux = MuxLookup(counter, allStreamBits(0), Seq(
+      0.U -> allStreamBits(0),
+      1.U -> allStreamBits(1),
+      2.U -> allStreamBits(2),
       ))
-    val total_arms = 2.U
+    
 
-    val anyValidMux = MuxLookup(counter, false.B, Seq(
-      0.U -> traces_A_any_valid,
-      1.U -> traces_B_any_valid,
-      // 2.U -> stream_bits_C
+    val anyValidMux = MuxLookup(counter, allAnyValid(0), Seq(
+      0.U -> allAnyValid(0),
+      1.U -> allAnyValid(1),
+      2.U -> allAnyValid(2),
       ))
 
     streamEnq.bits := theMux

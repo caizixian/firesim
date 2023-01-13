@@ -21,7 +21,7 @@ class TracerVDUT(implicit val p: Parameters) extends Module {
   // val insnWidth = 48
   // val insnWidths = TracedInstructionWidths(insnWidth, 32, None, 1, 1)
   
-  val insnCount = 14
+  val insnCount = 15
   val insnWidth = 40
   val insnWidths = TracedInstructionWidths(insnWidth,insnCount,None,64,40)
 
