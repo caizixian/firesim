@@ -203,7 +203,7 @@ public:
     // load into MMIO, and tick the system
     for (unsigned test_step = 0; test_step < get_total_trace_tests();
          test_step++) {
-      const uint64_t pull = simif->rand_next(tracerv_width);
+      const uint64_t pull = simif->rand_next(tracerv_width+1);
 
       auto pull_iaddr = get_iaddrs(test_step, tracerv_width);
       auto pull_bits = get_contiguous(pull, tracerv_width);
