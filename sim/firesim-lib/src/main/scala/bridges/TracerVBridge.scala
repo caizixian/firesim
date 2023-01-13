@@ -214,7 +214,7 @@ class TracerVBridgeModule(key: TracerVKey)(implicit p: Parameters)
       2.U -> triggerPCValVec.reduce(_ || _),
       3.U -> triggerInstValVec.reduce(_ || _)))
 
-    val mux_valid = RegInit(false.B)
+    val mux_valid = WireDefault(false.B)
 
     val tFireHelper = DecoupledHelper(streamEnq.ready, hPort.toHost.hValid, hPort.fromHost.hReady, initDone)
 
@@ -223,11 +223,16 @@ class TracerVBridgeModule(key: TracerVKey)(implicit p: Parameters)
     hPort.hBits.triggerCredit := trigger && !triggerReg
 
     val uint_traces = (traces map (trace => Cat(trace.valid, trace.iaddr).pad(64))).reverse
-    streamEnq.bits := Cat(uint_traces :+ trace_cycle_counter.pad(64)).pad(BridgeStreamConstants.streamWidthBits)
+    // streamEnq.bits := Cat(uint_traces :+ trace_cycle_counter.pad(64)).pad(BridgeStreamConstants.streamWidthBits)
 
-    val mux_hold = RegInit(false.B)
+    // val mux_hold = RegInit(false.B)
+    val destroy_token = WireDefault(false.B)
 
-    hPort.toHost.hReady := tFireHelper.fire(hPort.toHost.hValid) && !mux_hold // WRONG MOVE HERE
+    // every time hPort.toHost.hValid asserts, I look at it do work, and ->
+    // every time I assert hPort.toHost.hReady I am destroying the input token
+
+    hPort.toHost.hReady := destroy_token
+    // hPort.toHost.hReady := tFireHelper.fire(hPort.toHost.hValid) && !mux_hold // WRONG MOVE HERE
     hPort.fromHost.hValid := tFireHelper.fire(hPort.fromHost.hReady)
 
     // streamEnq.valid := (tFireHelper.fire(streamEnq.ready, trigger) && traceEnable)
@@ -239,33 +244,79 @@ class TracerVBridgeModule(key: TracerVKey)(implicit p: Parameters)
 
     val fsmT :: sNone :: sProcessing :: sArmValid :: sFooB :: sFooC :: sOther :: Nil = Enum(7)
     val fsm = RegInit(fsmT)
-    val select: UInt = RegInit(0.U(5.W))
+    // val select: UInt = RegInit(0.U(5.W))
+    // val select: UInt = WireDefault(0.U(5.W))
 
     val traces_A = Seq(traces(0), traces(1), traces(2), traces(3), traces(4), traces(5), traces(6))
     val uint_traces_A = (traces_A map (trace => Cat(trace.valid, trace.iaddr).pad(64))).reverse
     val stream_bits_A = Cat(uint_traces_A :+ trace_cycle_counter.pad(64)).pad(BridgeStreamConstants.streamWidthBits)
     val traces_A_decider = traces(0)
+    val traces_A_any_valid = (traces_A.map(trace => trace.valid).reduce((a,b) => (a|b)))
     
     val traces_B = Seq(traces(7), traces(8), traces(9), traces(10), traces(11), traces(12), traces(13))
     val uint_traces_B = (traces_B map (trace => Cat(trace.valid, trace.iaddr).pad(64))).reverse
     val stream_bits_B = Cat(uint_traces_B :+ trace_cycle_counter.pad(64)).pad(BridgeStreamConstants.streamWidthBits)
     val traces_B_decider = traces(7)
+    val traces_B_any_valid = (traces_B.map(trace => trace.valid).reduce((a,b) => (a|b)))
     
     // val traces_C = Seq(traces(14), traces(15), traces(16), traces(17), traces(18), traces(19), traces(20))
     // val uint_traces_C = (traces_C map (trace => Cat(trace.valid, trace.iaddr).pad(64))).reverse
     // val stream_bits_C = Cat(uint_traces_C :+ trace_cycle_counter.pad(64)).pad(BridgeStreamConstants.streamWidthBits)
     // val traces_C_decider = traces(14)
+
+    val counter = RegInit(0.U(5.W))
     
-    val theMux = MuxLookup(select, stream_bits_A, Seq(
+    val theMux = MuxLookup(counter, stream_bits_A, Seq(
       0.U -> stream_bits_A,
       1.U -> stream_bits_B,
       // 2.U -> stream_bits_C
       ))
-    val total_arms = RegInit(3.U)
+    val total_arms = 2.U
+
+    val anyValidMux = MuxLookup(counter, false.B, Seq(
+      0.U -> traces_A_any_valid,
+      1.U -> traces_B_any_valid,
+      // 2.U -> stream_bits_C
+      ))
+
+    streamEnq.bits := theMux
+
+    mux_valid := (hPort.toHost.hValid && anyValidMux) || (counter =/= 0.U && counter =/= total_arms)
+
+    when(mux_valid) {
+      when(counter =/= total_arms) {
+          counter := counter + 1.U
+        } .otherwise {
+          counter := 0.U
+          destroy_token := true.B
+        }
+      } .otherwise {
+      counter := 0.U
+    }
+
+    when(hPort.toHost.hValid && !mux_valid) {
+      destroy_token := true.B
+    }
+
+    // when(hPort.toHost.hValid) {
+    //   when(anyValidMux) {
+    //     when( !(counter === total_arms)) {
+    //       counter := counter + 1.U
+    //     } .otherwise {
+    //       counter := 0.U
+    //     }
+    //   } .otherwise {
+    //     counter := 0.U
+    //     // mux_valid := true.B
+    //   }
+    // }
+
 
     dontTouch(fsm)
-    dontTouch(select)
+    dontTouch(counter)
     dontTouch(theMux)
+    dontTouch(anyValidMux)
+    dontTouch(destroy_token)
 
     dontTouch(stream_bits_A)
     dontTouch(stream_bits_B)
@@ -284,7 +335,7 @@ class TracerVBridgeModule(key: TracerVKey)(implicit p: Parameters)
     dontTouch(use_arms)
     dontTouch(sent_arms)
     dontTouch(mux_valid)
-    dontTouch(mux_hold)
+    // dontTouch(mux_hold)
 
     // when(!(use_arms === 0.U)) {
     //   mux_hold := true.B
@@ -294,101 +345,101 @@ class TracerVBridgeModule(key: TracerVKey)(implicit p: Parameters)
     //   mux_valid := false.B
     // }
 
-    switch(fsm) {
-      is(sNone) {
+    // switch(fsm) {
+    //   is(sNone) {
 
-        when(hPort.toHost.hValid === true.B) {
-          when(traces_B_decider.valid) {
-            use_arms := 2.U
-            fsm := sArmValid
-            // mux_hold := true.B
-            // mux_valid := true.B
-            // mux_valid := true.B
-          }.elsewhen(traces_A_decider.valid) {
-            use_arms := 1.U
-            fsm := sArmValid
-            // mux_hold := true.B
-            // mux_valid := true.B
-            // fsm := sArmValid
-            // mux_valid := true.B
-          }.otherwise {
-            fsm := sNone
-            mux_hold := false.B
-            mux_valid := false.B
-            // mux_hold := false.B
-          }
-          // fsm := sProcessing
-          // use_arms := 0.U
-          // sent_arms := 0.U
-          // mux_valid := false.B
-          // mux_hold := true.B
-        }.otherwise {
-          // mux_hold := false.B
-        }
-      }
-      is(sArmValid) {
-        when(!(use_arms === 0.U)) {
-          select := use_arms - 1.U
-          use_arms := use_arms - 1.U
-          mux_hold  := true.B
-          mux_valid := true.B
-          // mux_hold  := !(use_arms === 1.U)
-          // mux_valid := !(use_arms === 1.U)
-        }.otherwise {
-          fsm := sNone
-          mux_hold := false.B
-          mux_valid := false.B
-        }
-        // when(sent_arms === use_arms) {
-        //   // done sending
-        //   mux_valid := false.B
-        //   fsm := sNone
-        // }.otherwise {
-        //   // send the next arm
-        //   fsm := sArmValid
-        //   mux_valid := true.B
-        //   select := sent_arms + 1.U
-        //   sent_arms := sent_arms + 1.U
-        // }
-      }
+    //     when(hPort.toHost.hValid === true.B) {
+    //       when(traces_B_decider.valid) {
+    //         use_arms := 2.U
+    //         fsm := sArmValid
+    //         // mux_hold := true.B
+    //         // mux_valid := true.B
+    //         // mux_valid := true.B
+    //       }.elsewhen(traces_A_decider.valid) {
+    //         use_arms := 1.U
+    //         fsm := sArmValid
+    //         // mux_hold := true.B
+    //         // mux_valid := true.B
+    //         // fsm := sArmValid
+    //         // mux_valid := true.B
+    //       }.otherwise {
+    //         fsm := sNone
+    //         mux_hold := false.B
+    //         mux_valid := false.B
+    //         // mux_hold := false.B
+    //       }
+    //       // fsm := sProcessing
+    //       // use_arms := 0.U
+    //       // sent_arms := 0.U
+    //       // mux_valid := false.B
+    //       // mux_hold := true.B
+    //     }.otherwise {
+    //       // mux_hold := false.B
+    //     }
+    //   }
+    //   is(sArmValid) {
+    //     when(!(use_arms === 0.U)) {
+    //       select := use_arms - 1.U
+    //       use_arms := use_arms - 1.U
+    //       mux_hold  := true.B
+    //       mux_valid := true.B
+    //       // mux_hold  := !(use_arms === 1.U)
+    //       // mux_valid := !(use_arms === 1.U)
+    //     }.otherwise {
+    //       fsm := sNone
+    //       mux_hold := false.B
+    //       mux_valid := false.B
+    //     }
+    //     // when(sent_arms === use_arms) {
+    //     //   // done sending
+    //     //   mux_valid := false.B
+    //     //   fsm := sNone
+    //     // }.otherwise {
+    //     //   // send the next arm
+    //     //   fsm := sArmValid
+    //     //   mux_valid := true.B
+    //     //   select := sent_arms + 1.U
+    //     //   sent_arms := sent_arms + 1.U
+    //     // }
+    //   }
 
-      // is(sProcessing) {
-      //   select := 0.U
-      //   when(traces_B_decider.valid) {
-      //     use_arms := 1.U
-      //     fsm := sArmValid
-      //     mux_valid := true.B
-      //   }.elsewhen((traces_A_decider.valid)) {
-      //     use_arms := 0.U
-      //     fsm := sArmValid
-      //     mux_valid := true.B
-      //   }.otherwise {
-      //     fsm := sNone
-      //     mux_hold := false.B
-      //   }
-      // }
-      // is(sArmValid) {
-      //   when(sent_arms === use_arms) {
-      //     // done sending
-      //     mux_valid := false.B
-      //     fsm := sNone
-      //   }.otherwise {
-      //     // send the next arm
-      //     fsm := sArmValid
-      //     mux_valid := true.B
-      //     select := sent_arms + 1.U
-      //     sent_arms := sent_arms + 1.U
-      //   }
-      // }
-      is(sFooB) {
-        select := 1.U
-        fsm := sFooC
-      }
-      is(sFooC) {
-        select := 2.U
-        fsm := sNone
-      }
-    }
+    //   // is(sProcessing) {
+    //   //   select := 0.U
+    //   //   when(traces_B_decider.valid) {
+    //   //     use_arms := 1.U
+    //   //     fsm := sArmValid
+    //   //     mux_valid := true.B
+    //   //   }.elsewhen((traces_A_decider.valid)) {
+    //   //     use_arms := 0.U
+    //   //     fsm := sArmValid
+    //   //     mux_valid := true.B
+    //   //   }.otherwise {
+    //   //     fsm := sNone
+    //   //     mux_hold := false.B
+    //   //   }
+    //   // }
+    //   // is(sArmValid) {
+    //   //   when(sent_arms === use_arms) {
+    //   //     // done sending
+    //   //     mux_valid := false.B
+    //   //     fsm := sNone
+    //   //   }.otherwise {
+    //   //     // send the next arm
+    //   //     fsm := sArmValid
+    //   //     mux_valid := true.B
+    //   //     select := sent_arms + 1.U
+    //   //     sent_arms := sent_arms + 1.U
+    //   //   }
+    //   // }
+    //   is(sFooB) {
+    //     select := 1.U
+    //     fsm := sFooC
+    //   }
+    //   is(sFooC) {
+    //     select := 2.U
+    //     fsm := sNone
+    //   }
+    // }
 
       
     // state machine
