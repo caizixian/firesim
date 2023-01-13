@@ -312,7 +312,7 @@ class TracerVBridgeModule(key: TracerVKey)(implicit p: Parameters)
 
     streamEnq.bits := theMux
 
-    mux_valid := (hPort.toHost.hValid && anyValidMux) || (counter =/= 0.U && counter =/= total_arms)
+    mux_valid := (hPort.toHost.hValid && anyValidMux) && (counter =/= total_arms)
 
     when(mux_valid) {
       when(counter =/= total_arms) {
