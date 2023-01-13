@@ -20,11 +20,10 @@ class TracerVDUT(implicit val p: Parameters) extends Module {
   // val insnCount = 8
   // val insnWidth = 48
   // val insnWidths = TracedInstructionWidths(insnWidth, 32, None, 1, 1)
-  
-  val insnCount = 15
-  val insnWidth = 40
-  val insnWidths = TracedInstructionWidths(insnWidth,insnCount,None,64,40)
 
+  val insnCount  = 15
+  val insnWidth  = 40
+  val insnWidths = TracedInstructionWidths(insnWidth, insnCount, None, 64, 40)
 
   val io = IO(new TracerVDUTIO(insnWidths, insnCount))
 
@@ -32,7 +31,6 @@ class TracerVDUT(implicit val p: Parameters) extends Module {
   // fatWire.clock := tileTrace.clock
   // fatWire.reset := tileTrace.reset
   // fatWire.insns := VecInit(Seq.fill(32) {tileTrace.insns.head} )
-  
 
   // val tracerV = TracerVBridge(fatWire)
   val tracerV = TracerVBridge(insnWidths, insnCount)
