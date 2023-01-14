@@ -224,21 +224,21 @@ class TracerVBridgeModule(key: TracerVKey)(implicit p: Parameters)
 
     val uint_traces = (traces map (trace => Cat(trace.valid, trace.iaddr).pad(64))).reverse
 
-    val destroy_token = WireDefault(false.B)
+    // val destroy_token = WireDefault(false.B)
 
     // every time          hPort.toHost.hValid asserts, I look at it do work, and ->
     // every time I assert hPort.toHost.hReady I am destroying the input token
 
-    hPort.toHost.hReady := destroy_token
+    
     // hPort.toHost.hReady := tFireHelper.fire(hPort.toHost.hValid) && !mux_hold // WRONG MOVE HERE
     hPort.fromHost.hValid := tFireHelper.fire(hPort.fromHost.hReady)
 
     // streamEnq.valid := (tFireHelper.fire(streamEnq.ready, trigger) && traceEnable)
-    streamEnq.valid := (trigger && traceEnable && initDone && mux_valid)
+    
 
-    when (destroy_token) {
-      trace_cycle_counter := trace_cycle_counter + 1.U
-    }
+    // when (destroy_token) {
+    //   trace_cycle_counter := trace_cycle_counter + 1.U
+    // }
 
     // the maximum widht of a single arm, this is determined by the 512 bit width of a single beat
     val armWidth = 7
@@ -261,40 +261,48 @@ class TracerVBridgeModule(key: TracerVKey)(implicit p: Parameters)
     // Literally each arm of the mux, these are directly the bits that get put into the bump
     val allStreamBits = allUintTraces.map(uarm=>Cat(uarm :+ trace_cycle_counter.pad(64)).pad(BridgeStreamConstants.streamWidthBits))
 
-    // a parallel set of arms to a parallel mux, true if any instructions in the arm are valid (OR reduction)
-    val allAnyValid = allTraceArms.map(arm=>arm.map(trace => trace.valid).reduce((a,b) => (a|b)))
-
     // This counter acts to select the mux arm
     val counter = RegInit(0.U(6.W))
     
     // The main mux where the input arms are different possible valid traces, and the output goes to streamEnq
     val streamMux = MuxLookup(counter, allStreamBits(0), Seq.tabulate(armCount)(x=>x.U->allStreamBits(x)))
     
-    val anyValidMux = MuxLookup(counter, allAnyValid(0), Seq.tabulate(armCount)(x=>x.U->allAnyValid(x)))
+    // a parallel set of arms to a parallel mux, true if any instructions in the arm are valid (OR reduction)
+    val anyValid = allTraceArms.map(arm=>arm.map(trace => trace.valid).reduce((a,b) => (a|b)))
+    val anyValidMux = MuxLookup(counter, false.B, Seq.tabulate(armCount)(x=>x.U->anyValid(x)))
+    
+    val allValid = allTraceArms.map(arm=>arm.map(trace => trace.valid).reduce((a,b) => (a&b)))
+    val allValidMux = MuxLookup(counter, false.B, Seq.tabulate(armCount)(x=>x.U->allValid(x)))
 
     streamEnq.bits := streamMux
 
-    mux_valid := (hPort.toHost.hValid && anyValidMux) && (counter =/= armCountU)
+    val maybeFire = !allValidMux
+    val maybeEnq  = anyValidMux
 
-    when(mux_valid) {
-      when(counter =/= armCountU) {
-          counter := counter + 1.U
-        } .otherwise {
-          counter := 0.U
-          destroy_token := true.B
-        }
-      } .otherwise {
-      counter := 0.U
+    // val do_enq_helper = DecoupledHelper(hPort.toHost.hValid, streamEnq.ready, anyValidMux)
+    // val do_fire_helper = DecoupledHelper(hPort.toHost.hValid, streamEnq.ready, maybeFire)
+
+    // Note, if we dequeue a token that wins out over the increment below
+    when(hPort.toHost.hValid && streamEnq.ready && maybeFire) {
+      counter := 0.U 
+    }.elsewhen(hPort.toHost.hValid && streamEnq.ready && anyValidMux) {
+      counter := counter + 1.U
     }
 
-    when(hPort.toHost.hValid && !mux_valid) {
-      destroy_token := true.B
+    streamEnq.valid := hPort.toHost.hValid && anyValidMux
+    hPort.toHost.hReady := streamEnq.ready && maybeFire
+
+    when (hPort.toHost.hValid && hPort.toHost.hReady) {
+      trace_cycle_counter := trace_cycle_counter + 1.U
     }
+
 
     dontTouch(counter)
     dontTouch(streamMux)
     dontTouch(anyValidMux)
-    dontTouch(destroy_token)
+    // dontTouch(destroy_token)
+    dontTouch(maybeFire)
+    dontTouch(maybeEnq)
           
     // state machine
     // mux traces onto streamEnq.bits

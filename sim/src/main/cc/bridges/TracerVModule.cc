@@ -262,7 +262,7 @@ private:
 
   // seems like smaller values will cause TraverV not to collect data
   // unsigned get_step_limit() const { return 10000; }
-  unsigned get_total_trace_tests() const { return 64; }
+  unsigned get_total_trace_tests() const { return 128; }
 
   std::unique_ptr<tracerv_t> tracerv;
 };
