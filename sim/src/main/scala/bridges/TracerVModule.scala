@@ -50,7 +50,6 @@ case object TracerVModuleInstructionCount extends Field[Int]
 case object TracerVModuleInstructionWidth extends Field[Int]
 
 class TracerVDUT(implicit val p: Parameters) extends Module {
-  println(s"ZZZZZZZZZZ  ${p(TracerVModuleInstructionCount)}")
 
   val insnCount  = p(TracerVModuleInstructionCount)
   val insnWidth  = p(TracerVModuleInstructionWidth)
