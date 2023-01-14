@@ -226,11 +226,11 @@ class TracerVBridgeModule(key: TracerVKey)(implicit p: Parameters)
 
     // the maximum widht of a single arm, this is determined by the 512 bit width of a single beat
     val armWidth = 7
-    val armCountU = (armCount).U
-
+    
     // divide with a ceiling round, to get the total number of arms
     val armCount = (traces.length + armWidth - 1) / armWidth
-    
+    val armCountU = (armCount).U
+
     // A sequence with the number of traces in each arm
     val armWidths = Seq.tabulate(armCount)(x => math.min(traces.length - (x * armWidth), armWidth))
 
