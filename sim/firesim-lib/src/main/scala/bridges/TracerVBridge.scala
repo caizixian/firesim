@@ -222,33 +222,15 @@ class TracerVBridgeModule(key: TracerVKey)(implicit p: Parameters)
     hPort.hBits.triggerDebit := !trigger && triggerReg
     hPort.hBits.triggerCredit := trigger && !triggerReg
 
-    val uint_traces = (traces map (trace => Cat(trace.valid, trace.iaddr).pad(64))).reverse
-
-    // val destroy_token = WireDefault(false.B)
-
-    // every time          hPort.toHost.hValid asserts, I look at it do work, and ->
-    // every time I assert hPort.toHost.hReady I am destroying the input token
-
-    
-    // hPort.toHost.hReady := tFireHelper.fire(hPort.toHost.hValid) && !mux_hold // WRONG MOVE HERE
     hPort.fromHost.hValid := tFireHelper.fire(hPort.fromHost.hReady)
-
-    // streamEnq.valid := (tFireHelper.fire(streamEnq.ready, trigger) && traceEnable)
-    
-
-    // when (destroy_token) {
-    //   trace_cycle_counter := trace_cycle_counter + 1.U
-    // }
 
     // the maximum widht of a single arm, this is determined by the 512 bit width of a single beat
     val armWidth = 7
+    val armCountU = (armCount).U
 
     // divide with a ceiling round, to get the total number of arms
     val armCount = (traces.length + armWidth - 1) / armWidth
-
-    // remove this duplicate representation
-    val armCountU = (armCount).U
-
+    
     // A sequence with the number of traces in each arm
     val armWidths = Seq.tabulate(armCount)(x => math.min(traces.length - (x * armWidth), armWidth))
 
@@ -279,52 +261,22 @@ class TracerVBridgeModule(key: TracerVKey)(implicit p: Parameters)
     val maybeFire = !allValidMux
     val maybeEnq  = anyValidMux
 
-    // val do_enq_helper = DecoupledHelper(hPort.toHost.hValid, streamEnq.ready, anyValidMux)
-    // val do_fire_helper = DecoupledHelper(hPort.toHost.hValid, streamEnq.ready, maybeFire)
+    val do_enq_helper = DecoupledHelper(hPort.toHost.hValid, streamEnq.ready, anyValidMux)
+    val do_fire_helper = DecoupledHelper(hPort.toHost.hValid, streamEnq.ready, maybeFire)
 
     // Note, if we dequeue a token that wins out over the increment below
-    when(hPort.toHost.hValid && streamEnq.ready && maybeFire) {
+    when(do_fire_helper.fire()) {
       counter := 0.U 
-    }.elsewhen(hPort.toHost.hValid && streamEnq.ready && anyValidMux) {
+    }.elsewhen(do_enq_helper.fire()) {
       counter := counter + 1.U
     }
 
-    streamEnq.valid := hPort.toHost.hValid && anyValidMux
-    hPort.toHost.hReady := streamEnq.ready && maybeFire
+    streamEnq.valid := do_enq_helper.fire(streamEnq.ready)
+    hPort.toHost.hReady := do_fire_helper.fire(hPort.toHost.hValid)
 
     when (hPort.toHost.hValid && hPort.toHost.hReady) {
       trace_cycle_counter := trace_cycle_counter + 1.U
     }
-
-
-    dontTouch(counter)
-    dontTouch(streamMux)
-    dontTouch(anyValidMux)
-    // dontTouch(destroy_token)
-    dontTouch(maybeFire)
-    dontTouch(maybeEnq)
-          
-    // state machine
-    // mux traces onto streamEnq.bits
-    // when toHost.valid is true, we have a new token -> processing state
-    // processing state -> 
-    // assume trace.valid is continugous , as soon as first non-valid is found, no remaining are valid
-
-//                                       |
-    // 7 are valid                vvvvvvv
-    // 10 are valid               vvvvvvv vvv
-
-
-    // count valids, deicde which arm of the mux to use
-    // only need to check first valid bit per arm
-    
-    // strobe valid, and update streamEnq.bits
-
-    // mux 32 / 7 inputs, 0-6 would use first arm of the mux
-
-    // 1: v
-    // 2: vv
-    // 3: vvv
 
     genCRFile()
     override def genHeader(base: BigInt, sb: StringBuilder): Unit = {
