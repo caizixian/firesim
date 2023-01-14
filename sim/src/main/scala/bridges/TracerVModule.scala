@@ -5,7 +5,7 @@ package firesim.bridges
 import chisel3._
 
 import firesim.midasexamples.PeekPokeMidasExampleHarness
-import freechips.rocketchip.config.Parameters
+import freechips.rocketchip.config.{Config, Field, Parameters}
 import testchipip.DeclockedTracedInstruction
 import testchipip.TracedInstructionWidths
 import midas.targetutils.TriggerSink
@@ -16,23 +16,48 @@ class TracerVDUTIO(insnWidths: TracedInstructionWidths, numInsns: Int) extends B
   val insns       = Input(Vec(numInsns, new DeclockedTracedInstruction(insnWidths)))
 }
 
-class TracerVDUT(implicit val p: Parameters) extends Module {
-  // val insnCount = 8
-  // val insnWidth = 48
-  // val insnWidths = TracedInstructionWidths(insnWidth, 32, None, 1, 1)
+class PlusArgsModuleTestCount1
+    extends Config((site, here, up) => {
+      case TracerVModuleInstructionCount => 1
+      case TracerVModuleInstructionWidth => 40
+    })
 
-  val insnCount  = 15
-  val insnWidth  = 40
+class PlusArgsModuleTestCount6
+    extends Config((site, here, up) => {
+      case TracerVModuleInstructionCount => 6
+      case TracerVModuleInstructionWidth => 40
+    })
+
+class PlusArgsModuleTestCount7
+    extends Config((site, here, up) => {
+      case TracerVModuleInstructionCount => 7
+      case TracerVModuleInstructionWidth => 40
+    })
+
+class PlusArgsModuleTestCount14
+    extends Config((site, here, up) => {
+      case TracerVModuleInstructionCount => 14
+      case TracerVModuleInstructionWidth => 40
+    })
+
+class PlusArgsModuleTestCount15
+    extends Config((site, here, up) => {
+      case TracerVModuleInstructionCount => 15
+      case TracerVModuleInstructionWidth => 40
+    })
+
+case object TracerVModuleInstructionCount extends Field[Int]
+case object TracerVModuleInstructionWidth extends Field[Int]
+
+class TracerVDUT(implicit val p: Parameters) extends Module {
+  println(s"ZZZZZZZZZZ  ${p(TracerVModuleInstructionCount)}")
+
+  val insnCount  = p(TracerVModuleInstructionCount)
+  val insnWidth  = p(TracerVModuleInstructionWidth)
   val insnWidths = TracedInstructionWidths(insnWidth, insnCount, None, 64, 40)
 
   val io = IO(new TracerVDUTIO(insnWidths, insnCount))
 
-  // val fatWire = Wire(new TileTraceIO(insnWidths, insnCount))
-  // fatWire.clock := tileTrace.clock
-  // fatWire.reset := tileTrace.reset
-  // fatWire.insns := VecInit(Seq.fill(32) {tileTrace.insns.head} )
-
-  // val tracerV = TracerVBridge(fatWire)
   val tracerV = TracerVBridge(insnWidths, insnCount)
   tracerV.io.trace.insns := io.insns
   TriggerSink(io.triggerSink)

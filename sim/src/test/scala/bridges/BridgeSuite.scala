@@ -138,17 +138,52 @@ class BlockDevTest(targetConfig: BasePlatformConfig)
 class BlockDevF1Test    extends BlockDevTest(BaseConfigs.F1)
 class BlockDevVitisTest extends BlockDevTest(BaseConfigs.Vitis)
 
-class TracerVTest(targetConfig: BasePlatformConfig) extends BridgeSuite("TracerVModule", "NoConfig", targetConfig) {
-
+class TracerVTestCount1(targetConfig: BasePlatformConfig)
+    extends BridgeSuite("TracerVModule", "PlusArgsModuleTestCount1", targetConfig) {
   override def runTest(backend: String, debug: Boolean) {
-    val runResult = run(backend, true, args = Seq(s"+tracefile=/home/centos/trace.txt", "+trace-test-output"))
-    // val runResult = run(backend, false, args = Seq(s"+tracefile=/home/centos/trace.txt", "+trace-test-output"))
+    val runResult = run(backend, false, args = Seq(s"+tracefile=/home/centos/trace.txt", "+trace-test-output"))
     assert(runResult == 0)
   }
 }
 
-class TracerVF1Test    extends TracerVTest(BaseConfigs.F1)
-class TracerVVitisTest extends TracerVTest(BaseConfigs.Vitis)
+class TracerVTestCount6(targetConfig: BasePlatformConfig)
+    extends BridgeSuite("TracerVModule", "PlusArgsModuleTestCount6", targetConfig) {
+  override def runTest(backend: String, debug: Boolean) {
+    val runResult = run(backend, false, args = Seq(s"+tracefile=/home/centos/trace.txt", "+trace-test-output"))
+    assert(runResult == 0)
+  }
+}
+
+class TracerVTestCount7(targetConfig: BasePlatformConfig)
+    extends BridgeSuite("TracerVModule", "PlusArgsModuleTestCount7", targetConfig) {
+  override def runTest(backend: String, debug: Boolean) {
+    val runResult = run(backend, false, args = Seq(s"+tracefile=/home/centos/trace.txt", "+trace-test-output"))
+    assert(runResult == 0)
+  }
+}
+
+class TracerVTestCount14(targetConfig: BasePlatformConfig)
+    extends BridgeSuite("TracerVModule", "PlusArgsModuleTestCount14", targetConfig) {
+  override def runTest(backend: String, debug: Boolean) {
+    val runResult = run(backend, false, args = Seq(s"+tracefile=/home/centos/trace.txt", "+trace-test-output"))
+    assert(runResult == 0)
+  }
+}
+
+class TracerVTestCount15(targetConfig: BasePlatformConfig)
+    extends BridgeSuite("TracerVModule", "PlusArgsModuleTestCount15", targetConfig) {
+  override def runTest(backend: String, debug: Boolean) {
+    val runResult = run(backend, false, args = Seq(s"+tracefile=/home/centos/trace.txt", "+trace-test-output"))
+    assert(runResult == 0)
+  }
+}
+
+class TracerVF1TestCount1  extends TracerVTestCount1(BaseConfigs.F1)
+class TracerVF1TestCount6  extends TracerVTestCount6(BaseConfigs.F1)
+class TracerVF1TestCount7  extends TracerVTestCount7(BaseConfigs.F1)
+class TracerVF1TestCount14 extends TracerVTestCount14(BaseConfigs.F1)
+class TracerVF1TestCount15 extends TracerVTestCount15(BaseConfigs.F1)
+class TracerVVitisTest     extends TracerVTestCount15(BaseConfigs.Vitis)
 
 class BridgeTests
     extends Suites(
@@ -156,6 +191,10 @@ class BridgeTests
       new UARTVitisTest,
       new BlockDevF1Test,
       new BlockDevVitisTest,
-      new TracerVF1Test,
+      new TracerVF1TestCount1,
+      new TracerVF1TestCount6,
+      new TracerVF1TestCount7,
+      new TracerVF1TestCount14,
+      new TracerVF1TestCount15,
       new TracerVVitisTest,
     )
