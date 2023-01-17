@@ -4,7 +4,7 @@
 
 #include "core/bridge_driver.h"
 #include "core/clock_info.h"
-
+#include <functional>
 #include <vector>
 
 class TraceTracker;
@@ -51,12 +51,17 @@ public:
   virtual bool terminate() { return false; }
   virtual int exit_code() { return 0; }
   virtual void finish() { flush(); };
+  void set_on_instruction_received(std::function<void(uint64_t, uint64_t)> cb);
 
 private:
   const TRACERVBRIDGEMODULE_struct mmio_addrs;
   const int stream_idx;
   const int stream_depth;
+
+public:
   const int max_core_ipc;
+
+private:
   ClockInfo clock_info;
 
   FILE *tracefile;
@@ -85,6 +90,8 @@ private:
   std::string tracefilename;
   std::string dwarf_file_name;
   bool fireperf = false;
+  bool init_ran = false;
+  std::function<void(uint64_t, uint64_t)> on_instruction_received = NULL;
 
   size_t process_tokens(int num_beats, int minium_batch_beats);
   int beats_available_stable();
