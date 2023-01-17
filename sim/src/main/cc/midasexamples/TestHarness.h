@@ -11,6 +11,7 @@
 #include "bridges/synthesized_prints.h"
 #include "bridges/termination.h"
 #include "bridges/tracerv.h"
+#include "core/bridge_driver.h"
 #include "core/simif.h"
 #include "core/simulation.h"
 
