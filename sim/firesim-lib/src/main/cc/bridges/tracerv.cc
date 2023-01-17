@@ -266,6 +266,8 @@ size_t tracerv_t::process_tokens(int num_beats, int minimum_batch_beats) {
             if (OUTBUF[i + q + 1] & valid_mask) {
               on_instruction_received(OUTBUF[i + 0],
                                       OUTBUF[i + q + 1] & (~valid_mask));
+            } else {
+              break;
             }
           }
         }
