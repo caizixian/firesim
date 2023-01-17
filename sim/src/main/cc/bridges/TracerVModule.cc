@@ -1,16 +1,10 @@
 // See LICENSE for license details.
 
-#ifndef RTLSIM
-#include "simif_f1.h"
-#define SIMIF simif_f1_t
-#else
-#include "simif_emul.h"
-#define SIMIF simif_emul_t
-#endif
+#include "core/bridge_driver.h"
+#include "core/simif.h"
 
 #include "bridges/tracerv.h"
 
-#include "bridges/bridge_driver.h"
 #include "bridges/peek_poke.h"
 
 #include "BridgeHarness.h"
@@ -75,7 +69,7 @@ public:
   }
 
   void simulation_init() override {
-#include "constructor.h"
+#include "core/constructor.h"
     for (auto &bridge : bridges) {
       bridge->init();
     }
