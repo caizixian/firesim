@@ -51,7 +51,6 @@ public:
   virtual bool terminate() { return false; }
   virtual int exit_code() { return 0; }
   virtual void finish() { flush(); };
-  void set_on_instruction_received(std::function<void(uint64_t, uint64_t)> cb);
   static void serialize(const uint64_t *const OUTBUF,
                         const size_t bytes_received,
                         FILE *tracefile,
@@ -100,13 +99,13 @@ private:
   std::string dwarf_file_name;
   bool fireperf = false;
   bool init_ran = false;
-  std::function<void(uint64_t, uint64_t)> on_instruction_received = NULL;
 
   size_t process_tokens(int num_beats, int minium_batch_beats);
   int beats_available_stable();
 
 public:
   void flush();
+  static constexpr uint64_t valid_mask = (1ULL << 40);
 };
 
 #endif // __TRACERV_H

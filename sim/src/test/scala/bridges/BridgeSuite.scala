@@ -157,8 +157,22 @@ class TracerVTestCount6(targetConfig: BasePlatformConfig)
 class TracerVTestCount7(targetConfig: BasePlatformConfig)
     extends BridgeSuite("TracerVModule", "PlusArgsModuleTestCount7", targetConfig) {
   override def runTest(backend: String, debug: Boolean) {
-    val runResult = run(backend, false, args = Seq(s"+tracefile=/home/centos/trace.txt", "+trace-test-output"))
+    // Create an expected file.
+    val expected = File.createTempFile("expected", ".txt")
+    expected.deleteOnExit()
+
+    // Create the output file. tracerv will always append '-C0' to the end of the plusarg
+    val output     = File.createTempFile("output", ".txt-C0")
+    output.deleteOnExit()
+    val outputPath = output.getPath.substring(0, output.getPath.length() - 3)
+
+    val runResult =
+      run(backend, false, args = Seq(s"+tracefile=${outputPath}", s"+tracerv-expected-output=${expected.getPath}"))
     assert(runResult == 0)
+
+    val expectedContents = scala.io.Source.fromFile(expected.getPath).mkString
+    val outputContents   = scala.io.Source.fromFile(output.getPath).mkString
+    outputContents should equal(expectedContents)
   }
 }
 

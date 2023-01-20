@@ -11,7 +11,6 @@
 #include <cstring>
 
 #include <fcntl.h>
-#include <iostream>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -23,8 +22,6 @@ char tracerv_t::KIND;
 // put FIREPERF in a mode that writes a simple log for processing later.
 // useful for iterating on software side only without re-running on FPGA.
 // #define FIREPERF_LOGGER
-
-constexpr uint64_t valid_mask = (1ULL << 40);
 
 tracerv_t::tracerv_t(simif_t &sim,
                      StreamEngine &stream,
@@ -116,8 +113,6 @@ tracerv_t::tracerv_t(simif_t &sim,
   }
 
   if (tracefilename) {
-    std::cout << "tracefilename: " << tracefilename << "\n";
-
     // giving no tracefilename means we will create NO tracefiles
     std::string tfname = std::string(tracefilename) + std::string("-C") +
                          std::to_string(tracerno);
@@ -339,15 +334,4 @@ void tracerv_t::flush() {
   pull_flush(stream_idx);
   while (this->trace_enabled && (process_tokens(this->stream_depth, 0) > 0))
     ;
-}
-
-/**
- * Set a callback that will fire with each traced instructions
- * The first argument is the cycle, the second is the PC. Multiple calls with
- * the same value for cycle indicates that multiple instructions landed on that
- * cycle
- */
-void tracerv_t::set_on_instruction_received(
-    std::function<void(uint64_t, uint64_t)> cb) {
-  on_instruction_received = cb;
 }

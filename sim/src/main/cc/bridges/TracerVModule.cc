@@ -1,14 +1,11 @@
 // See LICENSE for license details.
 
-#include "core/bridge_driver.h"
-#include "core/simif.h"
-
-#include "bridges/tracerv.h"
-
-#include "bridges/peek_poke.h"
-
 #include "BridgeHarness.h"
 #include "TestHarness.h"
+#include "bridges/peek_poke.h"
+#include "bridges/tracerv.h"
+#include "core/bridge_driver.h"
+#include "core/simif.h"
 
 #include <iostream>
 
@@ -18,7 +15,6 @@ static std::vector<bool> get_contiguous(const unsigned bits,
   for (unsigned i = 0; i < total; i++) {
     const bool value = (i < bits);
     ret.emplace_back(value);
-    // std::cout << value << "\n";
   }
 
   return ret;
@@ -53,15 +49,26 @@ class TracerVModule final : public simulation_t {
 public:
   TracerVModule(const std::vector<std::string> &args, simif_t *simif)
       : simulation_t(*simif, args), simif(simif) {
-        for (auto &arg : args) {
-          if (arg.find("+seed=") == 0) {
-            seed = strtoll(arg.c_str() + 6, NULL, 10);
-            fprintf(stderr, "Using custom SEED: %ld\n", seed);
-          }
+    for (auto &arg : args) {
+      if (arg.find("+seed=") == 0) {
+        seed = strtoll(arg.c_str() + 6, NULL, 10);
+        fprintf(stderr, "Using custom SEED: %ld\n", seed);
+      }
 
-          gen.seed(seed);
+      if (arg.find("+tracerv-expected-output=") == 0) {
+        const std::string fname =
+            arg.c_str() + 25; // 25 is the length of the argument to find
+        expected = fopen(fname.c_str(), "w");
+        if (!expected) {
+          fprintf(stderr,
+                  "Could not open expected test output file: %s\n",
+                  fname.c_str());
+          abort();
         }
       }
+    }
+    gen.seed(seed);
+  }
 
   virtual ~TracerVModule() {}
 
@@ -72,7 +79,6 @@ public:
   void add_bridge_driver(peek_poke_t *bridge) { peek_poke.reset(bridge); }
 
   void add_bridge_driver(tracerv_t *bridge) {
-    std::cout << "tracerv::add_bridge_driver(tracerv)\n";
     assert(!tracerv && "multiple bridges registered");
     tracerv.reset(bridge);
   }
@@ -84,6 +90,9 @@ public:
     }
     if (tracerv) {
       tracerv->init();
+
+      // write the header to our expected test output file
+      tracerv->write_header(expected);
     }
   }
 
@@ -101,25 +110,6 @@ public:
     return std::make_pair(final_iaddr, final_valid);
   }
 
-  // call init on tracerV
-  // call tick 1:1 with take_steps
-  // copy termination brige take_steps
-  // call take_steps for 100
-  // the in a loop, tick all bridges, untill done() is true
-  //
-
-  // expose a vec of iaddr, and valid
-  //   consider ValidIO,, a bundle with valid implicit (valid/ready without the
-  //   ready) just expose iaddr
-
-  // add require to traverVBridge
-  // consider PR a test before widht changes
-
-  // take N steps
-  // tick all of the bridges until done is asserted
-  // there is a timeout to see if done never returns
-  // returns false for error
-  // returns true for success
   bool steps(const unsigned s) {
     simif->take_steps(s, /*blocking=*/false);
     const unsigned timeout = 10000 + s;
@@ -146,29 +136,12 @@ public:
     return was_done;
   }
 
-  std::vector<uint64_t> expected_cycle;
-  std::vector<uint64_t> expected_iaddr;
-
-  std::vector<uint64_t> got_cycle;
-  std::vector<uint64_t> got_iaddr;
-
-  void got_instruction(const uint64_t cycle, const uint64_t pc) {
-    // std::cout << "cycle: " << cycle << " pc: " << pc << std::endl;
-    got_cycle.emplace_back(cycle);
-    got_iaddr.emplace_back(pc);
-  }
+  std::vector<std::pair<uint64_t, std::vector<uint64_t>>> expected_pair;
 
   int simulation_run() override {
     if (!tracerv) {
       std::cout << "tracerv was never set" << std::endl;
     }
-
-    // set the callback to capture traced instructions
-    tracerv->set_on_instruction_received(
-        std::bind(&TracerVModule::got_instruction,
-                  this,
-                  std::placeholders::_1,
-                  std::placeholders::_2));
 
     // Reset the DUT.
     peek_poke->poke("reset", 1, /*blocking=*/true);
@@ -186,6 +159,7 @@ public:
 
     // load MMIO and capture expected outputs
     auto load = [&](std::vector<uint64_t> iad, std::vector<bool> bit) {
+      std::vector<uint64_t> valid_i;
       assert(iad.size() == bit.size());
       for (unsigned i = 0; i < iad.size(); i++) {
         // std::cout << "loading " << i << " with " << iad[i] << "," << bit[i]
@@ -195,10 +169,10 @@ public:
 
         // calculate what TraverV should output, and save it
         if (bit[i]) {
-          expected_cycle.emplace_back(e_cycle);
-          expected_iaddr.emplace_back(iad[i]);
+          valid_i.emplace_back(iad[i]);
         }
       }
+      expected_pair.emplace_back(std::make_pair(e_cycle, valid_i));
       e_cycle++;
     };
 
@@ -220,35 +194,47 @@ public:
     // load final values (which are not valid and thus not checked)
     load(final_iaddr, final_valid);
 
-    // step to flush things out
-    // steps(get_step_limit());
-
     tracerv->flush();
 
     steps(100);
 
-    // check for test pass
-    check_test_pass();
+    // write out a file which contains the expected output
+    write_expected_file();
 
     return EXIT_SUCCESS;
   }
 
-  // check if the test passed, exit(1) for failure
-  void check_test_pass() {
-    if (got_cycle != expected_cycle) {
-      std::cerr << "FAIL: TracerV Cycles did not match\n";
-      exit(1);
+  /**
+   * Writes the contents of the member variable expected_pair
+   * to the expected file pointer. This is done via the tracerv_t::serialize
+   * function.
+   */
+  void write_expected_file() {
+    uint64_t OUTBUF[8];
+
+    for (const auto &beat : expected_pair) {
+      const auto &[cycle, insns] = beat;
+      memset(OUTBUF, 0, sizeof(OUTBUF));
+      OUTBUF[0] = cycle;
+      assert(insns.size() < 8);
+      for (int i = 0; i < insns.size(); i++) {
+        OUTBUF[i + 1] = insns[i] | tracerv_t::valid_mask;
+      }
+
+      // because expected_pair doesn't contain the instruction value for non
+      // valid instructions only the human readable output will compare
+      // correctly
+      tracerv_t::serialize(OUTBUF,
+                           sizeof(OUTBUF),
+                           expected,
+                           NULL,
+                           tracerv->max_core_ipc,
+                           true,
+                           false,
+                           false);
     }
 
-    if (got_iaddr != expected_iaddr) {
-      std::cerr << "FAIL: TracerV Iaddr did not match\n";
-      exit(1);
-    }
-
-    if (got_cycle.size() == 0 || got_iaddr.size() == 0) {
-      std::cerr << "FAIL: TracerV Iaddr or Cycle didn't capture anything\n";
-      exit(1);
-    }
+    fclose(expected);
   }
 
   void simulation_finish() override {
@@ -267,8 +253,6 @@ private:
   std::vector<std::unique_ptr<bridge_driver_t>> bridges;
   std::unique_ptr<peek_poke_t> peek_poke;
 
-  // seems like smaller values will cause TraverV not to collect data
-  // unsigned get_step_limit() const { return 10000; }
   unsigned get_total_trace_tests() const { return 128; }
 
   std::unique_ptr<tracerv_t> tracerv;
@@ -276,6 +260,9 @@ private:
   // random numbers
   uint64_t seed = 0;
   std::mt19937_64 gen;
+
+  // expected test output
+  FILE *expected = NULL;
 };
 
 TEST_MAIN(TracerVModule)
