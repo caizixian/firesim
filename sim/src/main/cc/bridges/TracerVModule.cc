@@ -52,7 +52,16 @@ static std::string namev(const unsigned x) {
 class TracerVModule final : public simulation_t {
 public:
   TracerVModule(const std::vector<std::string> &args, simif_t *simif)
-      : simulation_t(*simif, args), simif(simif) {}
+      : simulation_t(*simif, args), simif(simif) {
+        for (auto &arg : args) {
+          if (arg.find("+seed=") == 0) {
+            seed = strtoll(arg.c_str() + 6, NULL, 10);
+            fprintf(stderr, "Using custom SEED: %ld\n", seed);
+          }
+
+          gen.seed(seed);
+        }
+      }
 
   virtual ~TracerVModule() {}
 
@@ -197,7 +206,7 @@ public:
     // load into MMIO, and tick the system
     for (unsigned test_step = 0; test_step < get_total_trace_tests();
          test_step++) {
-      const uint64_t pull = simif->rand_next(tracerv_width + 1);
+      const uint64_t pull = rand_next(tracerv_width + 1);
 
       auto pull_iaddr = get_iaddrs(test_step, tracerv_width);
       auto pull_bits = get_contiguous(pull, tracerv_width);
@@ -248,6 +257,11 @@ public:
     }
   }
 
+  /**
+   * Returns the next available random number, modulo limit.
+   */
+  uint64_t rand_next(uint64_t limit) { return gen() % limit; }
+
 private:
   simif_t *simif;
   std::vector<std::unique_ptr<bridge_driver_t>> bridges;
@@ -258,6 +272,10 @@ private:
   unsigned get_total_trace_tests() const { return 128; }
 
   std::unique_ptr<tracerv_t> tracerv;
+
+  // random numbers
+  uint64_t seed = 0;
+  std::mt19937_64 gen;
 };
 
 TEST_MAIN(TracerVModule)
