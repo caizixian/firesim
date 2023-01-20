@@ -3,8 +3,8 @@
 #include "BridgeHarness.h"
 
 #include "bridges/blockdev.h"
-#include "bridges/uart.h"
 #include "bridges/tracerv.h"
+#include "bridges/uart.h"
 #include "core/bridge_driver.h"
 
 BridgeHarness::BridgeHarness(const std::vector<std::string> &args,
