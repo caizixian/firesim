@@ -52,6 +52,14 @@ public:
   virtual int exit_code() { return 0; }
   virtual void finish() { flush(); };
   void set_on_instruction_received(std::function<void(uint64_t, uint64_t)> cb);
+  static void serialize(const uint64_t *const OUTBUF,
+                        const size_t bytes_received,
+                        FILE *tracefile,
+                        std::function<void(uint64_t, uint64_t)> addInstruction,
+                        const int max_core_ipc,
+                        const bool human_readable,
+                        const bool test_output,
+                        const bool fireperf);
 
 private:
   const TRACERVBRIDGEMODULE_struct mmio_addrs;
