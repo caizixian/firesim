@@ -126,7 +126,7 @@ tracerv_t::tracerv_t(simif_t &sim,
       fprintf(stderr, "Could not open Trace log file: %s\n", tracefilename);
       abort();
     }
-    fputs(this->clock_info.file_header().c_str(), this->tracefile);
+    write_header(tracefile);
 
     // This must be kept consistent with config_runtime.ini's output_format.
     // That file's comments are the single source of truth for this.
@@ -318,6 +318,10 @@ void tracerv_t::serialize(
       }
     }
   }
+}
+
+void tracerv_t::write_header(FILE *file) {
+  fputs(this->clock_info.file_header().c_str(), file);
 }
 
 void tracerv_t::tick() {

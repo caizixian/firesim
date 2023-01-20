@@ -60,6 +60,7 @@ public:
                         const bool human_readable,
                         const bool test_output,
                         const bool fireperf);
+  void write_header(FILE *file);
 
 private:
   const TRACERVBRIDGEMODULE_struct mmio_addrs;
