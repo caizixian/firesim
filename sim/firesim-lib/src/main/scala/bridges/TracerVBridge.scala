@@ -43,6 +43,7 @@ class TracerVTargetIO(insnWidths: TracedInstructionWidths, numInsns: Int) extend
   */
 class TracerVBridge(insnWidths: TracedInstructionWidths, numInsns: Int) extends BlackBox
     with Bridge[HostPortIO[TracerVTargetIO], TracerVBridgeModule] {
+  require(numInsns > 0, "TracerVBridge: number of instructions must be larger than 0")
   val io = IO(new TracerVTargetIO(insnWidths, numInsns))
   val bridgeIO = HostPort(io)
   val constructorArg = Some(TracerVKey(insnWidths, numInsns))
@@ -76,19 +77,12 @@ object TracerVBridge {
     tracerv
   }
 
-  // def apply(tracedInsns: TileTraceIO)(implicit p:Parameters): TracerVBridge = {
-  //   val tracerv = withClockAndReset(tracedInsns.clock, tracedInsns.reset) {
-  //     TracerVBridge(tracedInsns.insnWidths, tracedInsns.numInsns)
-  //   }
-  //   tracerv.io.trace := tracedInsns
-  //   tracerv
-  // }
-
   def apply(tracedInsns: TileTraceIO)(implicit p:Parameters): TracerVBridge = {
-    val ep = Module(new TracerVBridge(tracedInsns.insnWidths, tracedInsns.numInsns))
-    withClockAndReset(tracedInsns.clock, tracedInsns.reset) { ep.generateTriggerAnnotations() }
-    ep.io.trace := tracedInsns
-    ep
+    val tracerv = withClockAndReset(tracedInsns.clock, tracedInsns.reset) {
+      TracerVBridge(tracedInsns.insnWidths, tracedInsns.numInsns)
+    }
+    tracerv.io.trace := tracedInsns
+    tracerv
   }
 }
 
@@ -243,8 +237,11 @@ class TracerVBridgeModule(key: TracerVKey)(implicit p: Parameters)
     // Literally each arm of the mux, these are directly the bits that get put into the bump
     val allStreamBits = allUintTraces.map(uarm=>Cat(uarm :+ trace_cycle_counter.pad(64)).pad(BridgeStreamConstants.streamWidthBits))
 
+    // Number of bits to use for the counter
+    val counterBits = if (armCount <= 1) 1 else log2Ceil(armCount)
+
     // This counter acts to select the mux arm
-    val counter = RegInit(0.U(6.W))
+    val counter = RegInit(0.U(counterBits.W))
     
     // The main mux where the input arms are different possible valid traces, and the output goes to streamEnq
     val streamMux = MuxLookup(counter, allStreamBits(0), Seq.tabulate(armCount)(x=>x.U->allStreamBits(x)))

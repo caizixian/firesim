@@ -46,6 +46,12 @@ class PlusArgsModuleTestCount15
       case TracerVModuleInstructionWidth => 40
     })
 
+class PlusArgsModuleTestCount32
+    extends Config((site, here, up) => {
+      case TracerVModuleInstructionCount => 32
+      case TracerVModuleInstructionWidth => 40
+    })
+
 case object TracerVModuleInstructionCount extends Field[Int]
 case object TracerVModuleInstructionWidth extends Field[Int]
 
