@@ -10,6 +10,8 @@
 class simif_t;
 
 struct CLOCKBRIDGEMODULE_struct {
+  uint64_t CREDIT;
+  uint64_t CREDIT_COUNT;
   uint64_t hCycle_0;
   uint64_t hCycle_1;
   uint64_t hCycle_latch;
@@ -37,6 +39,16 @@ public:
    * Returns the current host cycle as measured by a hardware counter
    */
   uint64_t hcycle();
+
+  /**
+   * Credit the system to generate tokens for a given number of host cycles.
+   */
+  void credit(uint32_t credits);
+
+  /**
+   * Check whether there are any credits remaining.
+   */
+  bool has_credits();
 
 private:
   const CLOCKBRIDGEMODULE_struct mmio_addrs;

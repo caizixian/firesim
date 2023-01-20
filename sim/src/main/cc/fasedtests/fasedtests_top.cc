@@ -92,6 +92,8 @@ void fasedtests_top_t::simulation_init() {
 
 int fasedtests_top_t::simulation_run() {
   auto &peek_poke = sim.get_registry().get_widget<peek_poke_t>();
+  auto &clock = sim.get_registry().get_widget<clockmodule_t>();
+  clock.credit(std::numeric_limits<uint32_t>::max());
   while (!simulation_complete() && !finished_scheduled_tasks()) {
     run_scheduled_tasks();
     peek_poke.step(get_largest_stepsize(), false);

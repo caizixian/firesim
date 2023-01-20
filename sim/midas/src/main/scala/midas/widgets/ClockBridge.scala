@@ -143,13 +143,38 @@ class ClockTokenVector(numClocks: Int) extends Bundle with HasChannels with Cloc
 class ClockBridgeModule(params: ClockParameters)(implicit p: Parameters)
     extends BridgeModule[ClockTokenVector] {
   val clockInfo = params.clocks
+  val phaseRelationships = clockInfo map { cInfo => (cInfo.multiplier, cInfo.divisor) }
+
   lazy val module = new BridgeModuleImp(this) {
+
   val io = IO(new WidgetIO())
   val hPort = IO(new ClockTokenVector(clockInfo.size))
-  val phaseRelationships = clockInfo map { cInfo => (cInfo.multiplier, cInfo.divisor) }
-  val clockTokenGen = Module(new RationalClockTokenGenerator(phaseRelationships))
-  hPort.clocks <> clockTokenGen.io
+  val clocks = hPort.clocks
 
+  // Register used to set the credit.
+  val creditIn = Wire(Decoupled(UInt(32.W)))
+  genAndAttachQueue(creditIn, "CREDIT")
+  creditIn.ready := true.B
+
+  // Register which reports the number of remaining tokens to the driver.
+  val credit = RegInit(0.U(32.W))
+  attach(credit, "CREDIT_COUNT", ReadOnly)
+
+  // Reset the credit count if the register is written. Otherwise, whenever a
+  // clock token is delivered, decrement the count. Stop when it reaches 0.
+  when (creditIn.fire) {
+    credit := creditIn.bits
+  }.elsewhen (clocks.fire) {
+    credit := credit - 1.U
+  }
+
+  // Generate tokens when credit is non-zero.
+  val clockTokenGen = Module(new RationalClockTokenGenerator(phaseRelationships))
+  clockTokenGen.io.ready := credit.orR && clocks.ready
+  clocks.bits := clockTokenGen.io.bits
+  clocks.valid := clockTokenGen.io.valid
+
+  // Expose a host cycle counter to the driver.
   val hCycleName = "hCycle"
   val hCycle = genWideRORegInit(0.U(64.W), hCycleName)
   hCycle := hCycle + 1.U
@@ -162,9 +187,10 @@ class ClockBridgeModule(params: ClockParameters)(implicit p: Parameters)
                                             .sortBy(_._1)
                                             .last._2
 
-  when (hPort.clocks.fire && hPort.clocks.bits(fastestClockIdx)) {
+  when (clocks.fire && clocks.bits(fastestClockIdx)) {
     tCycleFastest := tCycleFastest + 1.U
   }
+
   genCRFile()
 }
 

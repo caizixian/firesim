@@ -1,7 +1,10 @@
-#include <cinttypes>
-#include <iostream>
+// See LICENSE for license details.
 
 #include "TestHarness.h"
+
+#include <cinttypes>
+#include <iostream>
+#include <limits>
 
 static const char *blocking_fail =
     "The test environment has starved the simulator, preventing forward "
@@ -20,6 +23,15 @@ TestHarness::TestHarness(const std::vector<std::string> &args, simif_t &sim)
 }
 
 TestHarness::~TestHarness() = default;
+
+int TestHarness::simulation_run() {
+  // Let the design run.
+  auto &clock = sim.get_registry().get_widget<clockmodule_t>();
+  clock.credit(std::numeric_limits<uint32_t>::max());
+
+  run_test();
+  return teardown();
+}
 
 void TestHarness::step(uint32_t n, bool blocking) {
   if (n == 0)

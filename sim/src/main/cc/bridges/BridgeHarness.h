@@ -1,3 +1,5 @@
+// See LICENSE for license details.
+
 #ifndef MIDAEXAMPLES_BRIDGEHARNESS_H
 #define MIDAEXAMPLES_BRIDGEHARNESS_H
 
@@ -28,9 +30,6 @@ public:
 protected:
   virtual unsigned get_step_limit() const = 0;
   virtual unsigned get_tick_limit() const = 0;
-
-private:
-  peek_poke_t &peek_poke;
 };
 
 #define TEST_MAIN(CLASS_NAME)                                                  \

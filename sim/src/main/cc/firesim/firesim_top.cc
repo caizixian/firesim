@@ -85,16 +85,28 @@ void firesim_top_t::simulation_init() {
 }
 
 int firesim_top_t::simulation_run() {
-  auto &peek_poke = sim.get_registry().get_widget<peek_poke_t>();
+  auto &registry = sim.get_registry();
+  auto *peek_poke = registry.get_widget_opt<peek_poke_t>();
+  auto &clock = registry.get_widget<clockmodule_t>();
+
+  uint32_t step_size = get_largest_stepsize();
   while (!simulation_complete() && !finished_scheduled_tasks()) {
     run_scheduled_tasks();
-    peek_poke.step(get_largest_stepsize(), false);
-    while (!peek_poke.is_done() && !simulation_complete()) {
-      for (auto &e : sim.get_registry().get_all_bridges())
+
+    if (!clock.has_credits()) {
+      clock.credit(step_size);
+    }
+    if (peek_poke) {
+      peek_poke->step(step_size, false);
+    }
+
+    while (clock.has_credits() && (!peek_poke || !peek_poke->is_done()) &&
+           !simulation_complete()) {
+      for (auto &e : registry.get_all_bridges()) {
         e->tick();
+      }
     }
   }
-
   return exit_code();
 }
 
