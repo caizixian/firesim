@@ -260,6 +260,7 @@ void tracerv_t::serialize(
     const bool human_readable,
     const bool test_output,
     const bool fireperf) {
+  const int max_consider = std::min(max_core_ipc, 7);
   if (human_readable || test_output) {
     for (int i = 0; i < (bytes_received / sizeof(uint64_t)); i += 8) {
       if (test_output) {
@@ -273,7 +274,7 @@ void tracerv_t::serialize(
         fprintf(tracefile, "%016lx\n", OUTBUF[i + 0]);
         // At least one valid instruction
       } else {
-        for (int q = 0; q < max_core_ipc; q++) {
+        for (int q = 0; q < max_consider; q++) {
           if (OUTBUF[i + q + 1] & valid_mask) {
             fprintf(tracefile,
                     "Cycle: %016" PRId64 " I%d: %016" PRIx64 "\n",
@@ -291,7 +292,7 @@ void tracerv_t::serialize(
     for (int i = 0; i < (bytes_received / sizeof(uint64_t)); i += 8) {
       uint64_t cycle_internal = OUTBUF[i + 0];
 
-      for (int q = 0; q < max_core_ipc; q++) {
+      for (int q = 0; q < max_consider; q++) {
         if (OUTBUF[i + 1 + q] & valid_mask) {
           uint64_t iaddr =
               (uint64_t)((((int64_t)(OUTBUF[i + 1 + q])) << 24) >> 24);

@@ -172,7 +172,14 @@ public:
           valid_i.emplace_back(iad[i]);
         }
       }
-      expected_pair.emplace_back(std::make_pair(e_cycle, valid_i));
+
+      // place instructions onto the vector 7 at a time
+      for(size_t i = 0; i < valid_i.size(); i += 7) {
+        auto last = std::min(valid_i.size(), i + 7);
+        std::vector<uint64_t> chunk = std::vector<uint64_t>(valid_i.begin() + i, valid_i.begin() + last);
+        expected_pair.emplace_back(std::make_pair(e_cycle, chunk));
+      }
+
       e_cycle++;
     };
 
