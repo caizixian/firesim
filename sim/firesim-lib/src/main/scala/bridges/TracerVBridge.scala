@@ -237,8 +237,8 @@ class TracerVBridgeModule(key: TracerVKey)(implicit p: Parameters)
     // Literally each arm of the mux, these are directly the bits that get put into the bump
     val allStreamBits = allUintTraces.map(uarm=>Cat(uarm :+ trace_cycle_counter.pad(64)).pad(BridgeStreamConstants.streamWidthBits))
 
-    // Number of bits to use for the counter
-    val counterBits = if (armCount <= 1) 1 else log2Ceil(armCount)
+    // Number of bits to use for the counter, the +1 is required because the counter will count 1 past the number of arms
+    val counterBits = log2Ceil(armCount+1)
 
     // This counter acts to select the mux arm
     val counter = RegInit(0.U(counterBits.W))
