@@ -10,7 +10,6 @@
 #include "bridges/synthesized_assertions.h"
 #include "bridges/synthesized_prints.h"
 #include "bridges/termination.h"
-#include "bridges/tracerv.h"
 #include "core/bridge_driver.h"
 #include "core/simif.h"
 #include "core/simulation.h"
@@ -43,7 +42,6 @@ public:
   BRIDGE_HANDLER(reset_pulse_t, "Reset Pulse bridge");
   BRIDGE_HANDLER(plusargs_t, "PlusArgs bridge");
   BRIDGE_HANDLER(termination_t, "Termination bridge");
-  BRIDGE_HANDLER(tracerv_t, "TracerV bridge");
 
   void add_bridge_driver(peek_poke_t *bridge) { peek_poke.reset(bridge); }
 
