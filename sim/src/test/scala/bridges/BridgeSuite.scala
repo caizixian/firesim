@@ -138,7 +138,8 @@ class BlockDevTest(targetConfig: BasePlatformConfig)
 class BlockDevF1Test    extends BlockDevTest(BaseConfigs.F1)
 class BlockDevVitisTest extends BlockDevTest(BaseConfigs.Vitis)
 
-abstract class TracerVTestBase(platformConfig: BasePlatformConfig, width: Int) extends BridgeSuite("TracerVModule", s"PlusArgsModuleTestCount${width}", platformConfig) {
+abstract class TracerVTestBase(platformConfig: BasePlatformConfig, width: Int)
+    extends BridgeSuite("TracerVModule", s"PlusArgsModuleTestCount${width}", platformConfig) {
   override def runTest(backend: String, debug: Boolean) {
     // Create an expected file.
     val expected = File.createTempFile("expected", ".txt")
@@ -162,9 +163,9 @@ abstract class TracerVTestBase(platformConfig: BasePlatformConfig, width: Int) e
 class TracerVF1TestCount1  extends TracerVTestBase(BaseConfigs.F1, 1);
 class TracerVF1TestCount6  extends TracerVTestBase(BaseConfigs.F1, 6);
 class TracerVF1TestCount7  extends TracerVTestBase(BaseConfigs.F1, 7);
-class TracerVF1TestCount14  extends TracerVTestBase(BaseConfigs.F1, 14);
-class TracerVF1TestCount15  extends TracerVTestBase(BaseConfigs.F1, 15);
-class TracerVF1TestCount32  extends TracerVTestBase(BaseConfigs.F1, 32);
+class TracerVF1TestCount14 extends TracerVTestBase(BaseConfigs.F1, 14);
+class TracerVF1TestCount15 extends TracerVTestBase(BaseConfigs.F1, 15);
+class TracerVF1TestCount32 extends TracerVTestBase(BaseConfigs.F1, 32);
 class TracerVVitisTest     extends TracerVTestBase(BaseConfigs.F1, 15);
 
 class BridgeTests

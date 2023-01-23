@@ -13,6 +13,7 @@ DRIVER_CC := \
 TARGET_CXX_FLAGS := \
 		-I$(driver_dir) \
 		-I$(driver_dir)/midasexamples \
+		-I$(firesim_lib_dir) \
 		-g
 
 TARGET_LD_FLAGS :=
