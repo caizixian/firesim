@@ -6,7 +6,7 @@
 #include "core/simif.h"
 #include "core/simulation.h"
 #include "core/systematic_scheduler.h"
-
+std::vector<std::string> args_copy;
 class firesim_top_t : public systematic_scheduler_t, public simulation_t {
 public:
   firesim_top_t(const std::vector<std::string> &args, simif_t &sim);
@@ -30,6 +30,8 @@ private:
 
 firesim_top_t::firesim_top_t(const std::vector<std::string> &args, simif_t &sim)
     : simulation_t(sim, args) {
+
+  args_copy = args;
 
   max_cycles = -1;
   profile_interval = max_cycles;

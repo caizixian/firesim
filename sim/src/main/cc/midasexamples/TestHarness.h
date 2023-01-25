@@ -8,6 +8,7 @@
 #include "core/bridge_driver.h"
 #include "core/simif.h"
 #include "core/simulation.h"
+#include "simif_token_hashers.h"
 
 /**
  * Base class for simple unit tests.
@@ -80,6 +81,12 @@ protected:
   /// Random number generator for tests, using a fixed default seed.
   uint64_t random_seed = 0;
   std::mt19937_64 random;
+
+public:
+  std::unique_ptr<simif_token_hashers_t> token_hashers;
+
+private:
+  std::unique_ptr<peek_poke_t> peek_poke;
 
   bool pass = true;
   bool log = true;
