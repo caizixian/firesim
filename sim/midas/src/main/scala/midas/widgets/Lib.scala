@@ -234,7 +234,9 @@ class MCRFileMap(bytesPerAddress: Int) {
 
     val regs = regList.filter { entry =>
       val localAddress = name2addr(entry.name)
-      entry.substruct && !addrsToExclude.contains(localAddress)
+
+      val tokenHashReject = entry.name.contains("queueHead_") || entry.name.contains("queueOccupancy_") || entry.name.contains("tokenCount0_") || entry.name.contains("tokenCount1_")
+      !tokenHashReject && entry.substruct && !addrsToExclude.contains(localAddress)
     }
 
     // define to mark that a particular instantiation of a widget is present
