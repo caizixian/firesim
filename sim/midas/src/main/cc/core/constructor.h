@@ -809,4 +809,21 @@ INSTANTIATE_TRACERV(registry.add_widget, 31)
 #ifdef TERMINATIONBRIDGEMODULE_15_PRESENT
   INSTANTIATE_TERMINATION(registry.add_widget, 15)
 #endif
+
+#define INSTANTIATE_TOKENHASHMASTER(FUNC, IDX)                                 \
+  FUNC(new token_hashers_t(simif,                                        \
+                                 args,                                         \
+                                 TOKENHASHMASTER_##IDX##_substruct_create,     \
+                                 TOKENHASH_COUNT,                              \
+                                 TOKENHASH_BRIDGENAMES,                        \
+                                 TOKENHASH_NAMES,                              \
+                                 TOKENHASH_OUTPUTS,                            \
+                                 TOKENHASH_QUEUEHEADS,                         \
+                                 TOKENHASH_QUEUEOCCUPANCIES,                   \
+                                 TOKENHASH_TOKENCOUNTS0,                       \
+                                 TOKENHASH_TOKENCOUNTS1));
+
+#ifdef TOKENHASHMASTER_0_PRESENT
+  INSTANTIATE_TOKENHASHMASTER(registry.add_widget, 0)
+#endif
 // DOC include end: Bridge Driver Registration

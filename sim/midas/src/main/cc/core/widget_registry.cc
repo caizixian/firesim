@@ -42,6 +42,9 @@
 #ifdef UARTBRIDGEMODULE_0_PRESENT
 #include "bridges/uart.h"
 #endif
+#ifdef TOKENHASHMASTER_0_PRESENT
+#include "bridges/token_hashers.h"
+#endif
 
 widget_registry_t::widget_registry_t(const TargetConfig &config,
                                      simif_t &simif,
